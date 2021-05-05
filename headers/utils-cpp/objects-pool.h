@@ -2,7 +2,7 @@
 #include <type_traits>
 #include <memory>
 #include <cassert>
-#include "pimpl.h"
+#include <utils-cpp/pimpl.h>
 
 class ObjectsPoolBase;
 template<typename T> class ObjectsPool;

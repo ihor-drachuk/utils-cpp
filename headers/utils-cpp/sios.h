@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 #include <atomic>
-#include "singleton.h"
+#include <utils-cpp/singleton.h>
 
 // Static initialization order solution
 // Solution for "static initialization order fiasco" problem
