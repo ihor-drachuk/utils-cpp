@@ -1,18 +1,5 @@
 #pragma once
-
-namespace std {
-#ifdef __APPLE__
-    inline namespace __1 {
-        template<class> class __attribute__ ((__type_visibility__("default"))) shared_ptr;
-        template<class> class __attribute__ ((__type_visibility__("default"))) weak_ptr;
-    }
-
-    using namespace __1;
-#else
-    template<class> class shared_ptr;
-    template<class> class weak_ptr;
-#endif
-}
+#include <memory>
 
 #define DECLARE_PTR(class_name) \
     class class_name; \
