@@ -1,4 +1,20 @@
 #pragma once
+#include <tuple>
+
+/*
+    Example
+  -----------
+
+  struct My_Struct
+  {
+      int a_;
+      double b_;
+
+      auto tie() const { return std::tie(a_, b_); }
+  };
+
+  STRUCT_COMPARISONS(My_Struct);
+*/
 
 #define STRUCT_OP(STRUCT, OP) \
     inline bool operator OP(const STRUCT& lhs, const STRUCT& rhs) \
@@ -14,14 +30,6 @@
     STRUCT_OP(STRUCT, >=) \
     STRUCT_OP(STRUCT, >)
 
-//    Example
-//  -----------
-//
-//  struct My_Struct
-//  {
-//      int a_;
-//      double b_;
-//      auto tie() const { return std::tie(a_, b_); }
-//  };
-//
-//  STRUCT_COMPARISONS(My_Struct)
+#define STRUCT_COMPARISONS_ONLY_EQ(STRUCT) \
+    STRUCT_OP(STRUCT, ==) \
+    STRUCT_OP(STRUCT, !=) \
