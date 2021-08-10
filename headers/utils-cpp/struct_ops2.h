@@ -26,14 +26,14 @@
 
 
   // Custom comparer example:  strcmp instead of raw pointers comparison.
-  //                           Notice. It's non-global, but only for struct_ops2.
+  //                           Notice. It's non-global, but only for My_Struct.
   inline int compare(const My_Struct&, const char* a, const char* b)
   {
       return strcmp(a, b);
   }
 
 
-  TIED_COMPARISONS2(My_Struct)
+  STRUCT_COMPARISONS2(My_Struct)
 */
 
 
@@ -85,24 +85,24 @@ compare(const Struct& s, const std::tuple<Tp...>& t1, const std::tuple<Tp...>& t
 }
 
 template<typename Struct, typename... Tp>
-inline int compareTuples2(const Struct& s, const std::tuple<Tp...>& lhs, const std::tuple<Tp...>& rhs)
+inline int compareTuples(const Struct& s, const std::tuple<Tp...>& lhs, const std::tuple<Tp...>& rhs)
 {
     return compare(s, lhs, rhs);
 }
 
 } // namespace struct_ops_internal
 
-#define TIED_OP2(STRUCT, OP) \
+#define STRUCT_OP2(STRUCT, OP) \
     inline bool operator OP(const STRUCT& lhs, const STRUCT& rhs) \
     { \
-        const auto result = struct_ops_internal::compareTuples2(lhs, lhs.tie(), rhs.tie()); \
+        const auto result = struct_ops_internal::compareTuples(lhs, lhs.tie(), rhs.tie()); \
         return (result OP 0); \
     }
 
-#define TIED_COMPARISONS2(STRUCT) \
-    TIED_OP2(STRUCT, ==) \
-    TIED_OP2(STRUCT, !=) \
-    TIED_OP2(STRUCT, <) \
-    TIED_OP2(STRUCT, <=) \
-    TIED_OP2(STRUCT, >) \
-    TIED_OP2(STRUCT, >=)
+#define STRUCT_COMPARISONS2(STRUCT) \
+    STRUCT_OP2(STRUCT, ==) \
+    STRUCT_OP2(STRUCT, !=) \
+    STRUCT_OP2(STRUCT, <) \
+    STRUCT_OP2(STRUCT, <=) \
+    STRUCT_OP2(STRUCT, >) \
+    STRUCT_OP2(STRUCT, >=)
