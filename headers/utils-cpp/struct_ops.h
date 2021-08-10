@@ -1,18 +1,18 @@
 #pragma once
 
-#define TIED_OP(STRUCT, OP) \
+#define STRUCT_OP(STRUCT, OP) \
     inline bool operator OP(const STRUCT& lhs, const STRUCT& rhs) \
     { \
         return lhs.tie() OP rhs.tie(); \
     }
 
-#define TIED_COMPARISONS(STRUCT) \
-    TIED_OP(STRUCT, ==) \
-    TIED_OP(STRUCT, !=) \
-    TIED_OP(STRUCT, <) \
-    TIED_OP(STRUCT, <=) \
-    TIED_OP(STRUCT, >=) \
-    TIED_OP(STRUCT, >)
+#define STRUCT_COMPARISONS(STRUCT) \
+    STRUCT_OP(STRUCT, ==) \
+    STRUCT_OP(STRUCT, !=) \
+    STRUCT_OP(STRUCT, <) \
+    STRUCT_OP(STRUCT, <=) \
+    STRUCT_OP(STRUCT, >=) \
+    STRUCT_OP(STRUCT, >)
 
 //    Example
 //  -----------
@@ -24,4 +24,4 @@
 //      auto tie() const { return std::tie(a_, b_); }
 //  };
 //
-//  TIED_COMPARISONS(My_Struct)
+//  STRUCT_COMPARISONS(My_Struct)

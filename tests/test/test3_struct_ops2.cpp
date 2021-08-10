@@ -34,7 +34,7 @@ int compare(const MyStruct&, const int* lhs, const int* rhs)
     return strcmp((const char*)lhs, (const char*)rhs);
 }
 
-TIED_COMPARISONS2(MyStruct);
+STRUCT_COMPARISONS2(MyStruct);
 
 
 class StructOps3TestSuite : public testing::TestWithParam<std::tuple<MyStruct, MyStruct, ComparisonTest, bool>>
