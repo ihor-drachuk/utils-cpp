@@ -32,8 +32,14 @@
       return strcmp(a, b);
   }
 
+  inline bool compare_eq(const My_Struct&, const char* a, const char* b)
+  {
+      return strcmp(a, b) == 0;
+  }
 
-  STRUCT_COMPARISONS2(My_Struct)
+
+  STRUCT_COMPARISONS2(My_Struct);    // All:  <, <=, ==, !=, >, >=
+  STRUCT_COMPARISONS2_EQ(My_Struct); // Only: ==, !=
 */
 
 
@@ -90,6 +96,55 @@ inline int compareTuples(const Struct& s, const std::tuple<Tp...>& lhs, const st
     return compare(s, lhs, rhs);
 }
 
+//
+// Eq-only
+//
+
+template<typename Struct, typename T>
+typename std::enable_if<!std::is_floating_point<T>::value, bool>::type
+inline compare_eq(const Struct&, T a, T b)
+{
+    return (a == b);
+}
+
+/*
+template<typename Struct>
+inline bool compare_eq(const Struct&, const char* a, const char* b)
+{
+    return strcmp(a, b) == 0;
+}
+*/
+
+template <typename Struct, typename T>
+typename std::enable_if<std::is_floating_point<T>::value, bool>::type
+inline compare_eq(const Struct&, T a, T b)
+{
+    return (std::fabs(a - b) <= std::numeric_limits<T>::epsilon());
+}
+
+template<typename Struct, std::size_t I = 0, typename... Tp>
+inline typename std::enable_if<I == sizeof...(Tp), bool>::type
+compare_eq(const Struct&, const std::tuple<Tp...>&, const std::tuple<Tp...>&)
+{
+    return true;
+}
+
+template<typename Struct, std::size_t I = 0, typename... Tp>
+inline typename std::enable_if<I < sizeof...(Tp), bool>::type
+compare_eq(const Struct& s, const std::tuple<Tp...>& t1, const std::tuple<Tp...>& t2)
+{
+    auto result = compare_eq(s, std::get<I>(t1), std::get<I>(t2));
+
+    return result ? compare_eq<Struct, I + 1, Tp...>(s, t1, t2) :
+                    result;
+}
+
+template<typename Struct, typename... Tp>
+inline bool compareTuplesEq(const Struct& s, const std::tuple<Tp...>& lhs, const std::tuple<Tp...>& rhs)
+{
+    return compare_eq(s, lhs, rhs);
+}
+
 } // namespace struct_ops_internal
 
 #define STRUCT_OP2(STRUCT, OP) \
@@ -99,6 +154,13 @@ inline int compareTuples(const Struct& s, const std::tuple<Tp...>& lhs, const st
         return (result OP 0); \
     }
 
+#define STRUCT_OP2_EQ(STRUCT, OP) \
+    inline bool operator OP(const STRUCT& lhs, const STRUCT& rhs) \
+    { \
+        const auto result = struct_ops_internal::compareTuplesEq(lhs, lhs.tie(), rhs.tie()); \
+        return (result OP true); \
+    }
+
 #define STRUCT_COMPARISONS2(STRUCT) \
     STRUCT_OP2(STRUCT, ==) \
     STRUCT_OP2(STRUCT, !=) \
@@ -106,3 +168,7 @@ inline int compareTuples(const Struct& s, const std::tuple<Tp...>& lhs, const st
     STRUCT_OP2(STRUCT, <=) \
     STRUCT_OP2(STRUCT, >) \
     STRUCT_OP2(STRUCT, >=)
+
+#define STRUCT_COMPARISONS2_ONLY_EQ(STRUCT) \
+    STRUCT_OP2_EQ(STRUCT, ==) \
+    STRUCT_OP2_EQ(STRUCT, !=)

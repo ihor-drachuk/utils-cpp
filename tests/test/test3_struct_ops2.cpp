@@ -117,3 +117,29 @@ INSTANTIATE_TEST_SUITE_P(
             // Stub
             std::make_tuple(MyStruct{0, 0, nullptr, nullptr}, MyStruct{0, 0, nullptr, nullptr}, ComparisonTest::EQ, true)
     ));
+
+
+namespace {
+
+struct MyStruct2
+{
+    int a {0};
+    float b {0};
+
+    auto tie() const { return std::tie(a, b); }
+};
+
+STRUCT_COMPARISONS2_ONLY_EQ(MyStruct2);
+
+} // namespace
+
+TEST(UtilsCpp, StructComparisonsEq)
+{
+    MyStruct2 a, b;
+    ASSERT_EQ(a, b);
+    a.a++;
+    ASSERT_NE(a, b);
+    a.a--;
+    a.b = std::numeric_limits<float>::epsilon()/(float)1.1;
+    ASSERT_EQ(a, b);
+}
