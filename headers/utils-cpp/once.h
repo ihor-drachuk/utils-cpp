@@ -11,3 +11,15 @@
     }
 
 #define ONCE(code) ONCE_NAMED(flag, code)
+
+#define ONCE_GLOBAL_NAMED(flag, code) \
+    namespace { \
+    struct _OnceGlobal##flag { \
+        _OnceGlobal##flag() { \
+            code; \
+        } \
+    }; \
+    _OnceGlobal##flag _onceGlobal##flag; \
+    } /* namespace */
+
+#define ONCE_GLOBAL(code) ONCE_GLOBAL_NAMED(flag, code)
