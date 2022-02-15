@@ -99,7 +99,7 @@ template<size_t I, typename Ret, typename Func, typename Arg0, typename... Args,
          typename std::enable_if<!(I >= std::tuple_size<Ret>::value)>::type* = nullptr>
 void call_multiple_I(Ret& ret, const Func& func, const Arg0& arg0, const Args&... args)
 {
-    std::get<I>(ret) = std::apply(func, tuplize(arg0).value);
+    std::get<I>(ret) = std::apply(func, tuplize<Arg0>(arg0).value);
     call_multiple_I<I+1, Ret>(ret, func, args...);
 }
 
