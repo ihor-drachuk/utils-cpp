@@ -1,11 +1,12 @@
 #pragma once
+#include <utility>
 
 template<typename Functor>
 class scoped_guard {
 public:
     scoped_guard(Functor f): m_f(f) {}
     scoped_guard(const scoped_guard&) = delete;
-    scoped_guard(scoped_guard&& rhs): m_f(rhs.m_f) { rhs.m_moved = true; }
+    scoped_guard(scoped_guard&& rhs): m_f(std::move(rhs.m_f)) { rhs.m_moved = true; }
     ~scoped_guard() { if (!m_moved && !m_reset) m_f(); }
 
     scoped_guard<Functor>& operator=(const scoped_guard<Functor>&) = delete;
