@@ -4,6 +4,24 @@
 #include <utils-cpp/function_traits.h>
 
 //
+// contains_type
+//
+
+template<typename... Args>
+struct contains_type : std::false_type {};
+
+template<typename T, typename Arg0, typename... Args>
+struct contains_type<T, Arg0, Args...> : std::conditional_t<std::is_same_v<T, Arg0>, std::true_type, contains_type<T, Args...>>
+{};
+
+template<typename T, typename Tuple>
+struct contains_type_tuple : std::false_type {};
+
+template<typename T, typename Arg0, typename... Args>
+struct contains_type_tuple<T, std::tuple<Arg0, Args...>> : std::conditional_t<std::is_same_v<T, Arg0>, std::true_type, contains_type_tuple<T, std::tuple<Args...>>>
+{};
+
+//
 // tuple_cat_type<tupleA, tupleB>  ->  tupleAB
 //
 

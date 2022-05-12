@@ -48,3 +48,18 @@ TEST(UtilsCpp, TupleUtilsTest_integer_sequence_to_tuple)
     auto value = integer_sequence_to_tuple(std::make_integer_sequence<int, 5>());
     ASSERT_EQ(value, std::make_tuple(0, 1, 2, 3, 4));
 }
+
+TEST(UtilsCpp, TupleUtilsTest_contains_type)
+{
+    auto result1 = contains_type<int, float, double, int, std::string>::value;
+    ASSERT_TRUE(result1);
+
+    auto result2 = contains_type<int, float, double, std::string>::value;
+    ASSERT_FALSE(result2);
+
+    auto result3 = contains_type_tuple<int, std::tuple<float, double, int, std::string>>::value;
+    ASSERT_TRUE(result3);
+
+    auto result4 = contains_type_tuple<int, std::tuple<float, double, std::string>>::value;
+    ASSERT_FALSE(result4);
+}
