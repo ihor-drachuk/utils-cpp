@@ -161,6 +161,20 @@ inline bool compareTuplesEq(const Struct& s, const std::tuple<Tp...>& lhs, const
         return (result OP true); \
     }
 
+#define STRUCT_MEMBER_OP2(STRUCT, OP) \
+    inline bool operator OP(const STRUCT& rhs) const \
+    { \
+        const auto result = struct_ops_internal::compareTuples(*this, tie(), rhs.tie()); \
+        return (result OP 0); \
+    }
+
+#define STRUCT_MEMBER_OP2_EQ(STRUCT, OP) \
+    inline bool operator OP(const STRUCT& rhs) const \
+    { \
+        const auto result = struct_ops_internal::compareTuplesEq(*this, tie(), rhs.tie()); \
+        return (result OP true); \
+    }
+
 #define STRUCT_COMPARISONS2(STRUCT) \
     STRUCT_OP2(STRUCT, ==) \
     STRUCT_OP2(STRUCT, !=) \
@@ -172,3 +186,15 @@ inline bool compareTuplesEq(const Struct& s, const std::tuple<Tp...>& lhs, const
 #define STRUCT_COMPARISONS2_ONLY_EQ(STRUCT) \
     STRUCT_OP2_EQ(STRUCT, ==) \
     STRUCT_OP2_EQ(STRUCT, !=)
+
+#define STRUCT_COMPARISONS2_MEMBER(STRUCT) \
+    STRUCT_MEMBER_OP2(STRUCT, ==) \
+    STRUCT_MEMBER_OP2(STRUCT, !=) \
+    STRUCT_MEMBER_OP2(STRUCT, <) \
+    STRUCT_MEMBER_OP2(STRUCT, <=) \
+    STRUCT_MEMBER_OP2(STRUCT, >) \
+    STRUCT_MEMBER_OP2(STRUCT, >=)
+
+#define STRUCT_COMPARISONS2_MEMBER_ONLY_EQ(STRUCT) \
+    STRUCT_MEMBER_OP2_EQ(STRUCT, ==) \
+    STRUCT_MEMBER_OP2_EQ(STRUCT, !=)

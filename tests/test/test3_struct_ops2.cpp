@@ -37,7 +37,7 @@ int compare(const MyStruct&, const int* lhs, const int* rhs)
 STRUCT_COMPARISONS2(MyStruct);
 
 
-class StructOps3TestSuite : public testing::TestWithParam<std::tuple<MyStruct, MyStruct, ComparisonTest, bool>>
+class StructOps2TestSuite : public testing::TestWithParam<std::tuple<MyStruct, MyStruct, ComparisonTest, bool>>
 {
 };
 
@@ -63,7 +63,7 @@ void test(const MyStruct& s1, const MyStruct& s2, ComparisonTest comparison, boo
     ASSERT_EQ(answer, result);
 }
 
-TEST_P(StructOps3TestSuite, DataDrivenTest)
+TEST_P(StructOps2TestSuite, DataDrivenTest)
 {
     test(std::get<0>(GetParam()),
          std::get<1>(GetParam()),
@@ -74,8 +74,8 @@ TEST_P(StructOps3TestSuite, DataDrivenTest)
 } // namespace
 
 INSTANTIATE_TEST_SUITE_P(
-    StructOps3TestGroup,
-    StructOps3TestSuite,
+    StructOps2TestGroup,
+    StructOps2TestSuite,
     testing::Values(
             // Basic operations
             std::make_tuple(MyStruct{0, 0, nullptr, nullptr}, MyStruct{0, 0, nullptr, nullptr}, ComparisonTest::EQ, true),
