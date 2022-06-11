@@ -22,6 +22,12 @@
         return lhs.tie() OP rhs.tie(); \
     }
 
+#define STRUCT_MEMBER_OP(STRUCT, OP) \
+    inline bool operator OP(const STRUCT& rhs) const \
+    { \
+        return tie() OP rhs.tie(); \
+    }
+
 #define STRUCT_COMPARISONS(STRUCT) \
     STRUCT_OP(STRUCT, ==) \
     STRUCT_OP(STRUCT, !=) \
@@ -33,3 +39,15 @@
 #define STRUCT_COMPARISONS_ONLY_EQ(STRUCT) \
     STRUCT_OP(STRUCT, ==) \
     STRUCT_OP(STRUCT, !=) \
+
+#define STRUCT_COMPARISONS_MEMBER(STRUCT) \
+    STRUCT_MEMBER_OP(STRUCT, ==) \
+    STRUCT_MEMBER_OP(STRUCT, !=) \
+    STRUCT_MEMBER_OP(STRUCT, <) \
+    STRUCT_MEMBER_OP(STRUCT, <=) \
+    STRUCT_MEMBER_OP(STRUCT, >=) \
+    STRUCT_MEMBER_OP(STRUCT, >)
+
+#define STRUCT_COMPARISONS_MEMBER_ONLY_EQ(STRUCT) \
+    STRUCT_MEMBER_OP(STRUCT, ==) \
+    STRUCT_MEMBER_OP(STRUCT, !=) \
