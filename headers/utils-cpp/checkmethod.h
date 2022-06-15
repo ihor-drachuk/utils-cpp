@@ -3,17 +3,17 @@
 
 namespace CheckMethod { }
 
-#define CREATE_CHECK_METHOD(functionName) \
+#define CREATE_CHECK_METHOD(FunctionName) \
 namespace CheckMethod { \
-    template <class T> \
-    struct helper_##functionName \
+    template <typename T> \
+    struct helper_##FunctionName \
     { \
-        template <typename C> static std::true_type check(decltype(&C::functionName)); \
+        template <typename C> static std::true_type check(decltype(&C::FunctionName)); \
         template <typename> static std::false_type check(...); \
-        static bool const value = std::is_same<decltype(check<T>(0)), std::true_type>::value; \
+        static bool const value = std::is_same<decltype(check<T>(nullptr)), std::true_type>::value; \
     }; \
-    template<class T> struct functionName: std::integral_constant<bool, CheckMethod::helper_##functionName<T>::value> {}; \
-    template<class T> static constexpr bool functionName##_v = functionName<T>::value; \
+    template<class T> struct FunctionName: std::integral_constant<bool, CheckMethod::helper_##FunctionName<T>::value> {}; \
+    template<class T> static constexpr bool FunctionName##_v = FunctionName<T>::value; \
 } // namespace CheckMethod
 
 //    Example
