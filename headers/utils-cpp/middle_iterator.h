@@ -70,3 +70,6 @@ private:
     size_t m_index {};
     size_t m_offset {};
 };
+
+template<typename Iter> middle_iterator<Iter> make_middle_iterator(Iter begin, Iter end) { return middle_iterator<Iter>(begin, end); }
+template<typename Iter> middle_iterator<Iter> make_middle_iterator(Iter begin, Iter end, size_t index) { return middle_iterator<Iter>(begin, end, index); }
