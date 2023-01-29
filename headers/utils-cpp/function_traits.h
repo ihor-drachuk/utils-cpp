@@ -4,6 +4,8 @@
 #include <functional>
 #include <type_traits>
 
+namespace utils_cpp_internal {
+
 template<typename T>
 struct function_traits_func;
 
@@ -23,5 +25,7 @@ struct function_traits_func<std::function<R(Args...)>>
     };
 };
 
+} // namespace utils_cpp_internal
+
 template<typename T>
-struct function_traits : public function_traits_func< decltype(std::function(std::declval<T>())) > {};
+struct function_traits : public utils_cpp_internal::function_traits_func< decltype(std::function(std::declval<T>())) > {};
