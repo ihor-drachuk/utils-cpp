@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <utils-cpp/tuple_utils.h>
+#include <string>
 
 namespace {
 
@@ -13,6 +14,9 @@ double add(double a, int b)
     return a + b;
 }
 
+void voidFunc1(int) { }
+void voidFunc2(int, const std::string&) { }
+
 } // namespace
 
 TEST(UtilsCpp, TupleUtilsTest_duplicate_type)
@@ -25,22 +29,37 @@ TEST(UtilsCpp, TupleUtilsTest_duplicate_type)
     //std::get<20>(a) = 1; // build error
 }
 
-TEST(UtilsCpp, TupleUtilsTest_call_multiple)
+TEST(UtilsCpp, TupleUtilsTest_for_each)
 {
-    auto results = call_multiple(inc, 1, 2, 3, 4);
+    auto results = for_each(inc, 1, 2, 3, 4);
     ASSERT_EQ(results, std::make_tuple(2, 3, 4, 5));
 
-    auto results2 = call_multiple_tuple(inc, std::make_tuple(1,2,3,4));
+    auto results2 = for_each_tuple(inc, std::make_tuple(1,2,3,4));
     ASSERT_EQ(results2, std::make_tuple(2, 3, 4, 5));
 
-    auto results3 = call_multiple(add,
-                                  std::make_tuple(1,1),
-                                  std::make_tuple(1,2),
-                                  std::make_tuple(1,3),
-                                  std::make_tuple(2,4)
-                                  );
+    auto results3 = for_each(add,
+                             std::make_tuple(1,1),
+                             std::make_tuple(1,2),
+                             std::make_tuple(1,3),
+                             std::make_tuple(2,4)
+                             );
 
     ASSERT_EQ(results3, std::make_tuple(2, 3, 4, 6));
+
+    for_each(voidFunc1, 1, 2, 3);
+    for_each(voidFunc2,
+             std::make_tuple(1, std::string("11")),
+             std::make_tuple(2, std::string("22")));
+
+    std::string toBeCaptured;
+    auto lambdaFunc1 =     [toBeCaptured](int a)            { (void)toBeCaptured; return a+1; };
+    auto lambdaFunc2 =     [toBeCaptured](int a, int b)     { (void)toBeCaptured; return a+b; };
+    auto lambdaFuncVoid1 = [toBeCaptured](int)              { (void)toBeCaptured; };
+    auto lambdaFuncVoid2 = [toBeCaptured](int, std::string) { (void)toBeCaptured; };
+    for_each(lambdaFunc1, 1, 2, 3, 4);
+    for_each(lambdaFunc2, std::make_tuple(1, 1), std::make_tuple(2, 2));
+    for_each(lambdaFuncVoid1, 1, 2, 3, 4);
+    for_each(lambdaFuncVoid2, std::make_tuple(1, std::string("11")), std::make_tuple(2, std::string("22")));
 }
 
 TEST(UtilsCpp, TupleUtilsTest_integer_sequence_to_tuple)

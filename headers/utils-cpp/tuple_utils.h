@@ -4,6 +4,15 @@
 #include <utils-cpp/function_traits.h>
 
 //
+// Compile-time int
+//
+template<size_t I_>
+struct Int
+{
+    constexpr static size_t I = I_;
+};
+
+//
 // contains_type
 //
 
@@ -52,11 +61,13 @@ struct duplicate_type_impl<1, T>
 };
 
 template<typename T>
-struct duplicate_type_impl<0, T> { };
+struct duplicate_type_impl<0, T>
+{
+    using type = std::tuple<>;
+};
 
 template<typename T, size_t N>
 struct duplicate_type : public duplicate_type_impl<N, T> { };
-
 
 //
 // is_tuple<T>::value
@@ -83,59 +94,111 @@ auto integer_sequence_to_tuple(const std::integer_sequence<T, Is...>&)
     return std::make_tuple(Is...);
 }
 
+//
+// for_each_pair(func, tuple1, tuple2)
+// I.e.:
+//   - func(std::get<0>(tuple1), std::get<0>(tuple2), Int<0>);
+//   - func(std::get<1>(tuple1), std::get<1>(tuple2), Int<1>);
+//   - ...
+//
+
+template <typename F, typename Tuple1, typename Tuple2, std::size_t... I>
+void for_each_pair_impl(F&& f, Tuple1&& tuple1, Tuple2&& tuple2, std::index_sequence<I...>)
+{
+    (f(std::get<I>(tuple1), std::get<I>(tuple2), Int<I>()), ...);
+}
+
+template <typename F, typename Tuple1, typename Tuple2>
+void for_each_pair(F&& f, Tuple1&& tuple1, Tuple2&& tuple2)
+{
+    constexpr size_t Len = std::tuple_size_v<std::remove_cv_t<std::remove_reference_t<Tuple1>>>;
+    for_each_pair_impl(f, tuple1, tuple2, std::make_index_sequence<Len>());
+}
+
 
 //
-// call_multiple(func, arg0, args1, ...)
-// call_multiple_tuple(func, std::tuple<arg0, arg1, ...>)
+// for_each(func, arg0, args1, ...)
+// for_each_tuple(func, std::tuple<arg0, arg1, ...>)
+// I.e.:
+//   - func(arg0);  func(arg1);  ...
+//   - std::make_tuple(func(arg0), func(arg1), ...)
 //
 
-template<typename T>
-struct tuplize
-{
-    using type = std::tuple<T>;
+namespace utils_cpp_internal {
 
-    tuplize(const T& value): value(std::tie(value)) {}
-    std::tuple<const T&> value;
+template<typename Selector>
+struct universal_call_impl
+{
+    template<typename Func, typename Param>
+    static auto call(Func&& func, Param&& param)
+    {
+        return func(param);
+    }
 };
 
-template<typename... Args>
-struct tuplize<std::tuple<Args...>>
+template<typename... Ts>
+struct universal_call_impl<std::tuple<Ts...>>
 {
-    using type = std::tuple<Args...>;
-
-    tuplize(const type& value): value(value) {}
-    const type& value;
+    template<typename Func, typename Param>
+    static auto call(Func&& func, Param&& tuple)
+    {
+        return std::apply(func, tuple);
+    }
 };
 
-template<size_t I, typename Ret, typename Func,
-         typename std::enable_if<I >= std::tuple_size<Ret>::value>::type* = nullptr>
-void call_multiple_I(Ret&, const Func&)
+template<typename Func, typename T>
+auto universal_call(Func&& func, T&& param)
 {
+    using Selector = std::remove_cv_t<std::remove_reference_t<T>>;
+    return universal_call_impl<Selector>::call(func, param);
 }
 
-template<size_t I, typename Ret, typename Func, typename Arg0, typename... Args,
-         typename std::enable_if<!(I >= std::tuple_size<Ret>::value)>::type* = nullptr>
-void call_multiple_I(Ret& ret, const Func& func, const Arg0& arg0, const Args&... args)
+struct for_each_impl_void
 {
-    std::get<I>(ret) = std::apply(func, tuplize<Arg0>(arg0).value);
-    call_multiple_I<I+1, Ret>(ret, func, args...);
+    template<typename F, typename Tuple>
+    static void for_each_tuple(F&& func, Tuple&& params)
+    {
+        std::apply([&func](auto&&... xs){ (universal_call(func, xs), ...); }, params);
+    }
+};
+
+struct for_each_impl
+{
+    template<typename F, typename Tuple,
+             typename TupleRaw = std::remove_cv_t<std::remove_reference_t<Tuple>>,
+             typename FuncRet = typename function_traits<F>::return_type,
+             typename OwnRet = typename duplicate_type<FuncRet, std::tuple_size_v<TupleRaw>>::type>
+    static auto for_each_tuple(F&& func, Tuple&& params)
+    {
+        OwnRet results;
+
+        for_each_pair([&func](auto&& result, auto&& param, auto){
+            result = universal_call(func, param);
+        }, results, params);
+
+        return results;
+    }
+};
+
+template<typename Func,
+         typename RetType = typename function_traits<Func>::return_type>
+struct for_each_impl_selector : std::conditional_t<
+                                    std::is_same_v<RetType, void>,
+                                    for_each_impl_void,
+                                    for_each_impl
+                                >
+{ };
+
+} // namespace utils_cpp_internal
+
+template<typename F, typename... Ts>
+auto for_each_tuple(F&& func, std::tuple<Ts...>&& params)
+{
+    return utils_cpp_internal::for_each_impl_selector<F>::for_each_tuple(func, params);
 }
 
-template<typename Func, typename Arg0, typename... Args, typename Ret = typename duplicate_type<decltype(std::apply(std::declval<Func>(), std::declval<typename tuplize<Arg0>::type>())), sizeof...(Args)+1>::type>
-Ret call_multiple(const Func& func, const Arg0& arg0, const Args&... args)
+template<typename F, typename... Ts>
+auto for_each(F&& func, Ts&&... params)
 {
-    Ret ret;
-
-    call_multiple_I<0, Ret>(ret, func, arg0, args...);
-
-    return ret;
-}
-
-template<typename Func, typename Arg0, typename... Args>
-auto call_multiple_tuple(const Func& func, const std::tuple<Arg0, Args...>& allArgs)
-{
-    auto params = std::tuple_cat(std::tie(func),
-                                 allArgs);
-
-    return std::apply(call_multiple<Func, Arg0, Args...>, params);
+    return for_each_tuple(func, std::tie(params...));
 }
