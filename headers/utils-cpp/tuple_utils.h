@@ -95,7 +95,7 @@ auto integer_sequence_to_tuple(const std::integer_sequence<T, Is...>&)
 }
 
 //
-// for_each_pair(func, tuple1, tuple2)
+// for_each_tuple_pair(func, tuple1, tuple2)
 // I.e.:
 //   - func(std::get<0>(tuple1), std::get<0>(tuple2), Int<0>);
 //   - func(std::get<1>(tuple1), std::get<1>(tuple2), Int<1>);
@@ -103,16 +103,16 @@ auto integer_sequence_to_tuple(const std::integer_sequence<T, Is...>&)
 //
 
 template <typename F, typename Tuple1, typename Tuple2, std::size_t... I>
-void for_each_pair_impl(F&& f, Tuple1&& tuple1, Tuple2&& tuple2, std::index_sequence<I...>)
+void for_each_tuple_pair_impl(F&& f, Tuple1&& tuple1, Tuple2&& tuple2, std::index_sequence<I...>)
 {
     (f(std::get<I>(tuple1), std::get<I>(tuple2), Int<I>()), ...);
 }
 
 template <typename F, typename Tuple1, typename Tuple2>
-void for_each_pair(F&& f, Tuple1&& tuple1, Tuple2&& tuple2)
+void for_each_tuple_pair(F&& f, Tuple1&& tuple1, Tuple2&& tuple2)
 {
     constexpr size_t Len = std::tuple_size_v<std::remove_cv_t<std::remove_reference_t<Tuple1>>>;
-    for_each_pair_impl(f, tuple1, tuple2, std::make_index_sequence<Len>());
+    for_each_tuple_pair_impl(f, tuple1, tuple2, std::make_index_sequence<Len>());
 }
 
 
@@ -172,7 +172,7 @@ struct for_each_impl
     {
         OwnRet results;
 
-        for_each_pair([&func](auto&& result, auto&& param, auto){
+        for_each_tuple_pair([&func](auto&& result, auto&& param, auto){
             result = universal_call(func, param);
         }, results, params);
 
