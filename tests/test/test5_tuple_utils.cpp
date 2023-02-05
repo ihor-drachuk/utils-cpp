@@ -62,6 +62,22 @@ TEST(UtilsCpp, TupleUtilsTest_for_each)
     for_each(lambdaFuncVoid2, std::make_tuple(1, std::string("11")), std::make_tuple(2, std::string("22")));
 }
 
+TEST(UtilsCpp, TupleUtilsTest_for_each_tuple_pair)
+{
+    auto data1 = std::make_tuple(1, 2, 3, 4);
+    auto data2 = std::make_tuple(10, 20, 30, 40);
+    int i = 0;
+    for_each_tuple_pair([&i](auto& x1, auto& x2, auto ci) {
+        x2 += x1;
+        x1++;
+
+        ASSERT_EQ(i++, decltype(ci)::I);
+    }, data1, data2);
+
+    ASSERT_EQ(data1, std::make_tuple(2, 3, 4, 5));
+    ASSERT_EQ(data2, std::make_tuple(11, 22, 33, 44));
+}
+
 TEST(UtilsCpp, TupleUtilsTest_integer_sequence_to_tuple)
 {
     auto value = integer_sequence_to_tuple(std::make_integer_sequence<int, 5>());
