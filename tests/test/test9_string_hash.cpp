@@ -3,7 +3,7 @@
 #include <set>
 #include <list>
 
-TEST(UtilsCpp, string_hash_test)
+TEST(utils_cpp, string_hash_test)
 {
     int triggers1 = 0;
     int triggers2 = 0;

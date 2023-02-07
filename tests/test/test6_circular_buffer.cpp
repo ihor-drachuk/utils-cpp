@@ -16,7 +16,7 @@ constexpr uint8_t mark = 17;
 } // namespace
 
 
-TEST(UtilsCpp, CircularBuffer_RO_RW)
+TEST(utils_cpp, CircularBuffer_RO_RW)
 {
     CircularBuffer buf(phraseLen);
     char tempBase[phraseLen+2] = {0};
@@ -74,7 +74,7 @@ TEST(UtilsCpp, CircularBuffer_RO_RW)
     }
 }
 
-TEST(UtilsCpp, CircularBuffer_Copy_Move)
+TEST(utils_cpp, CircularBuffer_Copy_Move)
 {
     CircularBuffer buf(phraseLen);
     buf.write(phrase, phraseLen);

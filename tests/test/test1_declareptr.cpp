@@ -8,7 +8,7 @@ DECLARE_PTR(TestClass);
 struct TestStruct { };
 DECLARE_PTR_STRUCT(TestStruct);
 
-TEST(UtilsCpp, DeclarePtrTest)
+TEST(utils_cpp, DeclarePtrTest)
 {
     TestClassPtr a;
     TestStructPtr b;
