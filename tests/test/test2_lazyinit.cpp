@@ -9,7 +9,7 @@ struct MyObj
     MyObj() { testFlag = true; }
 };
 
-TEST(UtilsCpp, LazyInitTest)
+TEST(utils_cpp, LazyInitTest)
 {
     LazyInit<MyObj> obj([]()->auto { return new MyObj(); });
     ASSERT_FALSE(testFlag);

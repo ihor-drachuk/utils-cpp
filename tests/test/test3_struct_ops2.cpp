@@ -133,7 +133,7 @@ STRUCT_COMPARISONS2_ONLY_EQ(MyStruct2);
 
 } // namespace
 
-TEST(UtilsCpp, StructComparisonsEq)
+TEST(utils_cpp, StructComparisonsEq)
 {
     MyStruct2 a, b;
     ASSERT_EQ(a, b);

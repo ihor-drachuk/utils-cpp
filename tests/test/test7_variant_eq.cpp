@@ -2,7 +2,7 @@
 #include <utils-cpp/variant_eq_comparison.h>
 #include <string>
 
-TEST(UtilsCpp, variant_eq)
+TEST(utils_cpp, variant_eq)
 {
     std::variant<int, std::string> a;
     std::string b {"123"};

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace UtilsCpp {
+namespace utils_cpp {
 
 template<typename T = void,
          typename Container,
@@ -43,4 +43,4 @@ std::optional<RT> find_in_map(const Container& container, const KT& value)
     return (it == container.cend()) ? std::optional<RT>() : std::optional<RT>(it->second);
 }
 
-} // namespace UtilsCpp
+} // namespace utils_cpp

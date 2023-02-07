@@ -19,7 +19,7 @@ void voidFunc2(int, const std::string&) { }
 
 } // namespace
 
-TEST(UtilsCpp, TupleUtilsTest_duplicate_type)
+TEST(utils_cpp, TupleUtilsTest_duplicate_type)
 {
     using Type = duplicate_type<int, 20>::type;
     Type a;
@@ -29,7 +29,7 @@ TEST(UtilsCpp, TupleUtilsTest_duplicate_type)
     //std::get<20>(a) = 1; // build error
 }
 
-TEST(UtilsCpp, TupleUtilsTest_for_each)
+TEST(utils_cpp, TupleUtilsTest_for_each)
 {
     auto results = for_each(inc, 1, 2, 3, 4);
     ASSERT_EQ(results, std::make_tuple(2, 3, 4, 5));
@@ -62,7 +62,7 @@ TEST(UtilsCpp, TupleUtilsTest_for_each)
     for_each(lambdaFuncVoid2, std::make_tuple(1, std::string("11")), std::make_tuple(2, std::string("22")));
 }
 
-TEST(UtilsCpp, TupleUtilsTest_for_each_tuple_pair)
+TEST(utils_cpp, TupleUtilsTest_for_each_tuple_pair)
 {
     auto data1 = std::make_tuple(1, 2, 3, 4);
     auto data2 = std::make_tuple(10, 20, 30, 40);
@@ -78,13 +78,13 @@ TEST(UtilsCpp, TupleUtilsTest_for_each_tuple_pair)
     ASSERT_EQ(data2, std::make_tuple(11, 22, 33, 44));
 }
 
-TEST(UtilsCpp, TupleUtilsTest_integer_sequence_to_tuple)
+TEST(utils_cpp, TupleUtilsTest_integer_sequence_to_tuple)
 {
     auto value = integer_sequence_to_tuple(std::make_integer_sequence<int, 5>());
     ASSERT_EQ(value, std::make_tuple(0, 1, 2, 3, 4));
 }
 
-TEST(UtilsCpp, TupleUtilsTest_contains_type)
+TEST(utils_cpp, TupleUtilsTest_contains_type)
 {
     auto result1 = contains_type<int, float, double, int, std::string>::value;
     ASSERT_TRUE(result1);
