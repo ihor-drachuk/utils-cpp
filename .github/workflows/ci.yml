@@ -11,7 +11,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04, macos-10.15, windows-2019]
+        os: [ubuntu-20.04, macos-11, windows-2019]
         build_type: [Release, Debug]
 
     runs-on: ${{ matrix.os }}
@@ -45,7 +45,7 @@ jobs:
        echo "GENERATOR=Visual Studio 16 2019" >> $GITHUB_ENV
        echo "CORES=$NUMBER_OF_PROCESSORS" >> $GITHUB_ENV
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         path: src
 
@@ -61,7 +61,7 @@ jobs:
     runs-on: [ubuntu-20.04]
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       # Prepare a build
       - name: "Prepare build"
@@ -77,7 +77,7 @@ jobs:
           logfile: ${{ github.workspace }}/Build/compile_commands.json
 
       # Upload the results to the CI.
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: "CodeChecker Bug Reports"
           path: ${{ steps.codechecker.outputs.result-html-dir }}
