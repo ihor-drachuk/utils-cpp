@@ -8,7 +8,7 @@ on:
     types: [opened, edited, synchronize]
 
 jobs:
-  build:
+  Build:
     strategy:
       matrix:
         os: [ubuntu-20.04, macos-11, windows-2019]
@@ -81,3 +81,13 @@ jobs:
         with:
           name: "CodeChecker Bug Reports"
           path: ${{ steps.codechecker.outputs.result-html-dir }}
+
+  Done:
+    needs: [Build, CodeChecker]
+    runs-on: [ubuntu-20.04]
+    steps:
+    - name: "Done"
+      shell: bash
+      run: |
+       echo "Done"
+       exit 0
