@@ -7,6 +7,8 @@
 // It requires in .cpp file:
 //   1. Explicit destructor
 //   2. "struct T::impl_t"
+// The class is not copy or moveable!
+// Use NO_COPY_MOVE from ctor.h
 
 #define DECLARE_PIMPL  \
     struct impl_t; \
