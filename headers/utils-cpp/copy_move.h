@@ -20,8 +20,8 @@
    classname &operator=(const classname &) = default
 
 #define DEFAULT_MOVE(classname)       \
-   classname(classname &&) = default; \
-   classname &operator=(classname &&) = default
+   classname(classname &&) noexcept = default; \
+   classname &operator=(classname &&) noexcept = default
 
 #define DEFAULT_COPY_MOVE(classname) \
    DEFAULT_COPY(classname);          \
