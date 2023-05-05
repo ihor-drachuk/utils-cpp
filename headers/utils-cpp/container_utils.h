@@ -10,8 +10,8 @@ template<typename T = void,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
 std::optional<RT> find(const Container& container, const RT& value)
 {
-    auto it = std::find(container.cbegin(), container.cend(), value);
-    return (it == container.cend()) ? std::optional<RT>() : std::optional<RT>(*it);
+    auto it = std::find(std::cbegin(container), std::cend(container), value);
+    return (it == std::cend(container)) ? std::optional<RT>() : std::optional<RT>(*it);
 }
 
 template<typename T = void,
@@ -20,8 +20,8 @@ template<typename T = void,
          typename Callable>
 std::optional<RT> find_if(const Container& container, const Callable& predicate)
 {
-    auto it = std::find_if(container.cbegin(), container.cend(), predicate);
-    return (it == container.cend()) ? std::optional<RT>() : std::optional<RT>(*it);
+    auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
+    return (it == std::cend(container)) ? std::optional<RT>() : std::optional<RT>(*it);
 }
 
 template<typename T = void,
@@ -30,7 +30,7 @@ template<typename T = void,
 std::optional<RT> find_in_set(const Container& container, const RT& value)
 {
     auto it = container.find(value);
-    return (it == container.cend()) ? std::optional<RT>() : std::optional<RT>(*it);
+    return (it == std::cend(container)) ? std::optional<RT>() : std::optional<RT>(*it);
 }
 
 template<typename T = void,
@@ -40,7 +40,7 @@ template<typename T = void,
 std::optional<RT> find_in_map(const Container& container, const KT& value)
 {
     auto it = container.find(value);
-    return (it == container.cend()) ? std::optional<RT>() : std::optional<RT>(it->second);
+    return (it == std::cend(container)) ? std::optional<RT>() : std::optional<RT>(it->second);
 }
 
 } // namespace utils_cpp
