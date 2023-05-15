@@ -26,6 +26,7 @@ TEST(utils_cpp, ContainerUtilsTest)
 
     ASSERT_TRUE(utils_cpp::find(list, 1).has_value());
     ASSERT_TRUE(utils_cpp::find(list, 2).has_value());
+    ASSERT_EQ(utils_cpp::find(list, 2).index(), 1);
     ASSERT_TRUE(utils_cpp::find(list, 3).has_value());
     ASSERT_FALSE(utils_cpp::find(list, 4).has_value());
 
