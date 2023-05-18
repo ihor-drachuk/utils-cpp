@@ -16,8 +16,8 @@ public:
     SearchResult(const SearchResult<T>&) = default;
     SearchResult<T>& operator= (const SearchResult<T>&) = default;
 
-    inline operator bool() const { return has_value(); };
     inline bool has_value() const { return m_result.has_value(); }
+    inline explicit operator bool() const { return has_value(); };
 
     inline const T& operator* () const { return value(); };
     inline T& operator* () { return value(); };
