@@ -22,11 +22,8 @@ public:
     inline operator std::optional<T>() const { return has_value() ? std::optional<T>(value()) : std::optional<T>(); }
 
     inline const T& operator* () const { return value(); };
-    inline T& operator* () { return value(); };
     inline const T* operator-> () const { return &value(); }
-    inline T* operator-> () { return &value(); }
     inline const T& value() const { return m_result.value().first; }
-    inline T& value() { return m_result.value().first; }
 
     T value_or(const T& altValue) const { return has_value() ? value() : altValue; }
 
