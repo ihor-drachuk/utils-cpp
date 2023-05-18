@@ -6,6 +6,7 @@
 #include <vector>
 #include <list>
 #include <utils-cpp/container_utils.h>
+#include <utils-cpp/comparison_traits.h>
 
 
 TEST(utils_cpp, ContainerUtilsTest)
@@ -28,6 +29,12 @@ TEST(utils_cpp, ContainerUtilsTest)
         const bool found = !!utils_cpp::find(vector, 2);
         ASSERT_TRUE(found);
     }
+
+    ASSERT_FALSE((utils_cpp::is_comparable_eq<decltype(utils_cpp::find(vector, 2)), bool>::value));
+    ASSERT_FALSE((utils_cpp::is_comparable_eq<decltype(utils_cpp::find(vector, 2)), int>::value));
+    ASSERT_FALSE((std::is_assignable<bool, decltype(utils_cpp::find(vector, 2))>::value));
+    ASSERT_FALSE((std::is_assignable<int, decltype(utils_cpp::find(vector, 2))>::value));
+    ASSERT_TRUE((std::is_assignable<std::optional<int>, decltype(utils_cpp::find(vector, 2))>::value));
 
     if (utils_cpp::find(vector, 1)) ASSERT_TRUE(true);
     if (!utils_cpp::find(vector, 4)) ASSERT_TRUE(true);
