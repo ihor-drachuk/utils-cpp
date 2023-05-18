@@ -19,10 +19,33 @@ TEST(utils_cpp, ContainerUtilsTest)
     std::map<int, std::string> map {{1, "one"}, {2, "two"}, {3, "three"}};
     std::unordered_map<int, std::string> unordered_map {{1, "one"}, {2, "two"}, {3, "three"}};
 
+    {
+        const std::optional<int> optValue = utils_cpp::find(vector, 2);
+        ASSERT_EQ(optValue.value(), 2);
+    }
+
+    {
+        const bool found = !!utils_cpp::find(vector, 2);
+        ASSERT_TRUE(found);
+    }
+
+    if (utils_cpp::find(vector, 1)) ASSERT_TRUE(true);
+    if (!utils_cpp::find(vector, 4)) ASSERT_TRUE(true);
+    if (utils_cpp::find(vector, 4)) ASSERT_TRUE(false);
+
     ASSERT_TRUE(utils_cpp::find(vector, 1).has_value());
     ASSERT_TRUE(utils_cpp::find(vector, 2).has_value());
     ASSERT_TRUE(utils_cpp::find(vector, 3).has_value());
     ASSERT_FALSE(utils_cpp::find(vector, 4).has_value());
+
+    ASSERT_TRUE(utils_cpp::find(vector, 1));
+    ASSERT_TRUE(utils_cpp::find(vector, 2));
+    ASSERT_TRUE(utils_cpp::find(vector, 3));
+    ASSERT_FALSE(utils_cpp::find(vector, 4));
+
+    ASSERT_EQ(utils_cpp::find(vector, 1).value(), 1);
+    ASSERT_EQ(utils_cpp::find(vector, 2).value(), 2);
+    ASSERT_EQ(utils_cpp::find(vector, 3).value(), 3);
 
     ASSERT_TRUE(utils_cpp::find(list, 1).has_value());
     ASSERT_TRUE(utils_cpp::find(list, 2).has_value());
