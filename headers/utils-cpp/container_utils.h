@@ -19,6 +19,8 @@ public:
     inline bool has_value() const { return m_result.has_value(); }
     inline explicit operator bool() const { return has_value(); };
 
+    inline operator std::optional<T>() const { return has_value() ? std::optional<T>(value()) : std::optional<T>(); }
+
     inline const T& operator* () const { return value(); };
     inline T& operator* () { return value(); };
     inline const T* operator-> () const { return &value(); }
