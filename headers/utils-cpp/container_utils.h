@@ -9,9 +9,16 @@
  *
  *  There are functions, which find value in container. By default copy of value is stored internally.
  *   - find        (container, value)
- *   - find_if     (container, value, predicate)
- *   - find_in_set (set-container, value)
+ *   - find_if     (container, predicate)
  *   - find_in_map (map-container, value)
+ *
+ *   - contains     (container, value)
+ *   - contains_if  (container, predicate)
+ *   - contains_set (set-container, value)
+ *   - contains_map (map-container, value)
+ *
+ *   - index_of     (container, value)
+ *   - index_of_if  (container, predicate)
  *
  *  There are additional modifications of find functions:
  *    _cref  -  internally stores reference to found item instead of copying
@@ -210,24 +217,12 @@ auto find_if_ref(const Container& container, const Callable& predicate)
                                           SearchResult<std::reference_wrapper<const RT>, true>(*it, std::distance(std::cbegin(container), it));
 }
 
-// Find in set
-
-template<typename T = void,
-         typename Container,
-         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
-std::optional<RT> find_in_set(const Container& container, const RT& value)
-{
-    auto it = container.find(value);
-    return (it == std::cend(container)) ? std::optional<RT>() :
-                                          std::optional<RT>(*it);
-}
-
 // Find in map
 
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
-         typename KT = typename Container::key_type>
+         typename KT>
 std::optional<RT> find_in_map(const Container& container, const KT& value)
 {
     auto it = container.find(value);
@@ -238,7 +233,7 @@ std::optional<RT> find_in_map(const Container& container, const KT& value)
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
-         typename KT = typename Container::key_type>
+         typename KT>
 auto find_in_map_ref(Container& container, const KT& value)
 {
     auto it = container.find(value);
@@ -249,7 +244,7 @@ auto find_in_map_ref(Container& container, const KT& value)
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
-         typename KT = typename Container::key_type>
+         typename KT>
 auto find_in_map_ref(const Container& container, const KT& value)
 {
     auto it = container.find(value);
@@ -260,12 +255,68 @@ auto find_in_map_ref(const Container& container, const KT& value)
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
-         typename KT = typename Container::key_type>
+         typename KT>
 auto find_in_map_cref(const Container& container, const KT& value)
 {
     auto it = container.find(value);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, false>() :
                                           SearchResult<std::reference_wrapper<const RT>, false>(it->second);
+}
+
+// contains
+
+template<typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+bool contains(const Container& container, const RT& value)
+{
+    auto it = std::find(std::cbegin(container), std::cend(container), value);
+    return (it != std::cend(container));
+}
+
+template<typename Container,
+         typename Callable>
+bool contains_if(const Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
+    return (it != std::cend(container));
+}
+
+template<typename Container,
+         typename KT>
+bool contains_set(const Container& container, const KT& value)
+{
+    auto it = container.find(value);
+    return (it != std::cend(container));
+}
+
+template<typename Container,
+         typename KT>
+bool contains_map(const Container& container, const KT& value)
+{
+    auto it = container.find(value);
+    return (it != std::cend(container));
+}
+
+// index_of
+
+template<typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+std::optional<size_t> index_of(const Container& container, const RT& value)
+{
+    auto it = std::find(std::cbegin(container), std::cend(container), value);
+    return (it == std::cend(container)) ? std::optional<size_t>() :
+                                          std::optional<size_t>(std::distance(std::cbegin(container), it));
+}
+
+template<typename Container,
+         typename Callable>
+std::optional<size_t> index_of_if(const Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
+    return (it == std::cend(container)) ? std::optional<size_t>() :
+                                          std::optional<size_t>(std::distance(std::cbegin(container), it));
 }
 
 } // namespace utils_cpp
