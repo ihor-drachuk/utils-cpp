@@ -19,8 +19,10 @@
  *
  *  Returned object is similar to `std::optional`, but also has `index` method:
  *   - operator  bool() const
+ *   - T&        value()
+ *   - T&        operator*
+ *   - T*        operator->
  *   - bool      has_value() const
- *   - const T&  value() const
  *   - T         value_or(const T& alternative) const
  *   - size_t    index() const  -- unavailable for set and map containers!
 */
@@ -90,11 +92,11 @@ public:
     PartOperators(const T& data): Base(data) {}
 
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& operator* () { return Base::value(); };
-    template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT* operator-> () { return &Base::value(); }
+    template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT* operator-> () { return &static_cast<UT&>(Base::value()); }
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& value() { return Base::value(); }
 
     const UT& operator* () const { return Base::value(); };
-    const UT* operator-> () const { return &Base::value(); }
+    const UT* operator-> () const { return &static_cast<const UT&>(Base::value()); }
     const UT& value() const { return Base::value(); }
 };
 
