@@ -181,3 +181,24 @@ TEST(utils_cpp, ContainerUtilsTest_set)
     std::set<int> container {1, 2, 3, 4};
     //auto r = utils_cpp::find_ref(container, 2); -- should fail, because std::set::iterator isn't modifiable
 }
+
+TEST(utils_cpp, ContainerUtilsTest_operators)
+{
+    struct SomeStruct {
+        int value {};
+        bool operator==(const SomeStruct& rhs) const { return rhs.value == value; }
+
+        void testMethod() {};
+        void testMethodConst() const {};
+    };
+
+    std::vector<SomeStruct> container {SomeStruct()};
+
+    auto res = utils_cpp::find_ref(container, SomeStruct());
+    (*res).testMethod();
+    res->testMethod();
+
+    auto resConst = utils_cpp::find_ref(utils_cpp::as_const(container), SomeStruct());
+    (*resConst).testMethodConst();
+    resConst->testMethodConst();
+}
