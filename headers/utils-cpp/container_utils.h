@@ -49,10 +49,10 @@ public:
     bool has_value() const { return m_data.has_value(); }
     explicit operator bool() const { return has_value(); };
 
-    const T& value() const { return m_data.value(); }
+    const UT& value() const { return m_data.value(); }
 
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr>
-    T& value() { return m_data.value(); }
+    UT& value() { return m_data.value(); }
 
     UT value_or(const UT& altValue) const { return has_value() ? value() : altValue; }
 
@@ -92,11 +92,11 @@ public:
     PartOperators(const T& data): Base(data) {}
 
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& operator* () { return Base::value(); };
-    template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT* operator-> () { return &static_cast<UT&>(Base::value()); }
+    template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT* operator-> () { return &Base::value(); }
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& value() { return Base::value(); }
 
     const UT& operator* () const { return Base::value(); };
-    const UT* operator-> () const { return &static_cast<const UT&>(Base::value()); }
+    const UT* operator-> () const { return &Base::value(); }
     const UT& value() const { return Base::value(); }
 };
 
