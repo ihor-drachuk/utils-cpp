@@ -66,13 +66,6 @@ TEST(utils_cpp, ContainerUtilsTest_ByCopy)
     ASSERT_TRUE(utils_cpp::find(list, 3).has_value());
     ASSERT_FALSE(utils_cpp::find(list, 4).has_value());
 
-    ASSERT_TRUE(utils_cpp::find_in_set(set, 1).has_value());
-    ASSERT_TRUE(utils_cpp::find_in_set(set, 2).has_value());
-    ASSERT_TRUE(utils_cpp::find_in_set(set, 3).has_value());
-    ASSERT_FALSE(utils_cpp::find_in_set(set, 4).has_value());
-    ASSERT_TRUE(utils_cpp::find_in_set(unordered_set, 1).has_value());
-    ASSERT_FALSE(utils_cpp::find_in_set(unordered_set, 4).has_value());
-
     ASSERT_TRUE(utils_cpp::find_in_map(map, 1).has_value());
     ASSERT_TRUE(utils_cpp::find_in_map(map, 2).has_value());
     ASSERT_TRUE(utils_cpp::find_in_map(map, 3).has_value());
@@ -85,7 +78,6 @@ TEST(utils_cpp, ContainerUtilsTest_value_or)
 {
     ASSERT_EQ(utils_cpp::find       (std::vector<int>   {1, 2, 3, 4}, 1)                        .value_or(10), 1);
     ASSERT_EQ(utils_cpp::find       (std::list<int>     {1, 2, 3, 4}, 2)                        .value_or(10), 2);
-    ASSERT_EQ(utils_cpp::find_in_set(std::set<int>      {1, 2, 3, 4}, 3)                        .value_or(10), 3);
     ASSERT_EQ(utils_cpp::find_in_map(std::map<int, int> {{1, 11}, {2, 22}, {3, 33}, {4, 44}}, 4).value_or(10), 44);
     ASSERT_EQ(utils_cpp::find       (std::vector<int>   {1, 2, 3, 4}, 5)                        .value_or(10), 10);
 }
@@ -201,4 +193,25 @@ TEST(utils_cpp, ContainerUtilsTest_operators)
     auto resConst = utils_cpp::find_ref(utils_cpp::as_const(container), SomeStruct());
     (*resConst).testMethodConst();
     resConst->testMethodConst();
+}
+
+TEST(utils_cpp, ContainerUtilsTest_contains)
+{
+    ASSERT_TRUE(utils_cpp::contains(std::vector<int> {1,2,3,4}, 2));
+    ASSERT_TRUE(utils_cpp::contains_set(std::set<int> {1,2,3,4}, 2));
+    ASSERT_TRUE(utils_cpp::contains_map(std::map<int, int> {{1, 11}, {2, 22}, {3, 33}, {4, 44}}, 2));
+    ASSERT_TRUE(utils_cpp::contains_if(std::vector<int> {1,2,3,4}, [](auto x){ return x == 2; }));
+
+    ASSERT_FALSE(utils_cpp::contains(std::vector<int> {1,2,3,4}, 10));
+    ASSERT_FALSE(utils_cpp::contains_set(std::set<int> {1,2,3,4}, 10));
+    ASSERT_FALSE(utils_cpp::contains_map(std::map<int, int> {{1, 11}, {2, 22}, {3, 33}, {4, 44}}, 10));
+    ASSERT_FALSE(utils_cpp::contains_if(std::vector<int> {1,2,3,4}, [](auto x){ return x == 10; }));
+}
+
+TEST(utils_cpp, ContainerUtilsTest_index_of)
+{
+    ASSERT_EQ(utils_cpp::index_of(std::vector<int> {1,2,3,4}, 2), 1);
+    ASSERT_EQ(utils_cpp::index_of_if(std::vector<int> {1,2,3,4}, [](auto x){ return x == 2; }), 1);
+    ASSERT_FALSE(utils_cpp::index_of(std::vector<int> {1,2,3,4}, 10));
+    ASSERT_FALSE(utils_cpp::index_of_if(std::vector<int> {1,2,3,4}, [](auto x){ return x == 10; }));
 }
