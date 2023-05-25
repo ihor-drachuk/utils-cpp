@@ -21,7 +21,7 @@ public:
     template<typename Factory>
     void setFactory(const Factory& factory) { m_factory = factory; }
 
-    operator bool() const { return m_content != nullptr; }
+    explicit operator bool() const { return m_content != nullptr; }
 
     T* operator->() { create(); return m_content; }
     const T* operator->() const { create(); return m_content; }
