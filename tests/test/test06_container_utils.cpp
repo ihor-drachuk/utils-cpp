@@ -215,3 +215,38 @@ TEST(utils_cpp, ContainerUtilsTest_index_of)
     ASSERT_FALSE(utils_cpp::index_of(std::vector<int> {1,2,3,4}, 10));
     ASSERT_FALSE(utils_cpp::index_of_if(std::vector<int> {1,2,3,4}, [](auto x){ return x == 10; }));
 }
+
+TEST(utils_cpp, ContainerUtilsTest_copy_if)
+{
+    ASSERT_EQ(utils_cpp::copy_if(std::vector<int> {1,2,3,4}, [](auto v){ return v % 2; }), (std::vector<int>{1, 3}));
+    ASSERT_EQ(utils_cpp::copy_if(std::vector<int> {1,2,3,4}, [](size_t index, const auto& v){ return index > 1 && v % 2; }), (std::vector<int>{3}));
+    ASSERT_EQ(utils_cpp::copy_if<std::list>(std::vector<int> {1,2,3,4}, [](int v){ return v % 2; }), (std::list<int>{1, 3}));
+}
+
+TEST(utils_cpp, ContainerUtilsTest_transform)
+{
+    ASSERT_EQ(utils_cpp::transform(std::vector<int> {1,2,3}, [](auto v){ return std::to_string(v); }),                 (std::vector<std::string>{"1", "2", "3"}));
+    ASSERT_EQ(utils_cpp::transform<std::list>(std::vector<int> {1,2,3}, [](int v){ return std::to_string(v); }),       (std::list<std::string>{"1", "2", "3"}));
+    ASSERT_EQ(utils_cpp::transform(std::vector<int> {0,0,0}, [](size_t index, auto){ return std::to_string(index); }), (std::vector<std::string>{"0", "1", "2"}));
+}
+
+TEST(utils_cpp, ContainerUtilsTest_copy_if_transform)
+{
+    ASSERT_EQ(utils_cpp::copy_if_transform(
+                  std::vector<int> {1,2,3,4},
+                  [](int v) { return v % 2; },
+                  [](int v){ return std::to_string(v); }),
+              (std::vector<std::string>{"1", "3"}));
+
+    ASSERT_EQ(utils_cpp::copy_if_transform<std::list>(
+                  std::vector<int> {1,2,3,4},
+                  [](size_t i, int v) { return i > 1 && v % 2; },
+                  [](int v) { return std::to_string(v); }),
+              (std::list<std::string>{"3"}));
+
+    ASSERT_EQ(utils_cpp::copy_if_transform(
+                  std::vector<int> {0,0,0,0},
+                  [](int) { return true; },
+                  [](size_t index, int){ return std::to_string(index); }),
+              (std::vector<std::string>{"0", "1", "2", "3"}));
+}

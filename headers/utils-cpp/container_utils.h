@@ -1,11 +1,15 @@
 #pragma once
 #include <optional>
 #include <algorithm>
+#include <iterator>
 #include <type_traits>
 #include <utility>
 #include <cassert>
 
+
 /*  Overview
+ *
+ *  --- SEARCH ---
  *
  *  There are functions, which find value in container. By default copy of value is stored internally.
  *   - find        (container, value)
@@ -32,11 +36,31 @@
  *   - bool      has_value() const
  *   - T         value_or(const T& alternative) const
  *   - size_t    index() const  -- unavailable for set and map containers!
+ *
+ *
+ *   --- COPY/MODIFICATION ---
+ *
+ *   - copy_if(container, predicate)
+ *   - transform(container, transformer)
+ *   - copy_if_transform(container, predicate, transformer)
+ *
+ *   Notice:
+ *    - By default, return type is same container of same types (copy_if) or
+ *                                 same container of transformed types (*transform)
+ *
+ *    - First template parameter could be used to override returned container type.
+ *      E.g.: copy_if<std::list>(someVector, somePredicate); - this will return std::list instead of vector.
+ *
+ *    - Predicate and transformer can have index of currently processed item. I.e. both variants are valid:
+ *        [] (const auto& value) { return value.empty(); }
+ *        [] (size_t index, const auto& value) { return index !== 0 && value.empty(); }
 */
 
 namespace utils_cpp {
 
 namespace Internal {
+
+template<typename>   struct Empty {};
 
 template<typename>   struct IsAnyRef                            : std::false_type {};
 template<typename T> struct IsAnyRef<std::reference_wrapper<T>> : std::true_type {};
@@ -105,6 +129,38 @@ public:
     const UT& operator* () const { return Base::value(); };
     const UT* operator-> () const { return &Base::value(); }
     const UT& value() const { return Base::value(); }
+};
+
+
+template<bool, typename, typename> struct PredicateCaller { };
+
+template<typename Predicate, typename Item>
+struct PredicateCaller<true, Predicate, Item> // With index
+{
+    using RetType = decltype(std::declval<Predicate>()(size_t(), std::declval<Item>()));
+    static auto call(size_t index, const Predicate& predicate, const Item& item) { return predicate(index, item); }
+};
+
+template<typename Predicate, typename Item>
+struct PredicateCaller<false, Predicate, Item> // W/o index
+{
+    using RetType = decltype(std::declval<Predicate>()(std::declval<Item>()));
+    static auto call(size_t, const Predicate& predicate, const Item& item) { return predicate(item); }
+};
+
+template<typename Predicate, typename Item>
+struct PredicateCallerSel : public PredicateCaller<std::is_invocable_v<Predicate, size_t, Item>, Predicate, Item> { };
+
+template<typename Predicate, typename Item>
+auto callPredicate(size_t index, const Predicate& predicate, const Item& item)
+{
+    return PredicateCallerSel<Predicate, Item>::call(index, predicate, item);
+}
+
+template<typename Predicate, typename Item>
+struct PredicateRetType
+{
+    using type = typename PredicateCallerSel<Predicate, Item>::RetType;
 };
 
 } // namespace Internal
@@ -317,6 +373,67 @@ std::optional<size_t> index_of_if(const Container& container, const Callable& pr
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? std::optional<size_t>() :
                                           std::optional<size_t>(std::distance(std::cbegin(container), it));
+}
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         typename Container,
+         typename Callable>
+auto copy_if(const Container& container, const Callable& predicate)
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container, OverrideContainer<ElementType>>;
+
+    ResultType result;
+    auto it = std::back_inserter(result);
+
+    size_t index = -1;
+    for (const auto& x : container)
+        if (Internal::callPredicate(++index, predicate, x))
+            *it++ = x;
+
+    return result;
+}
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         template<typename...> class Container,
+         typename CArg0, typename... CArgs,
+         typename Transformer>
+auto transform(const Container<CArg0, CArgs...>& container, const Transformer& transformer)
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using NewType = typename Internal::PredicateRetType<Transformer, ElementType>::type;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<NewType>, OverrideContainer<NewType>>;
+
+    ResultType result;
+    auto it = std::back_inserter(result);
+
+    size_t index = -1;
+    for (const auto& x : container)
+        *it++ = Internal::callPredicate(++index, transformer, x);
+
+    return result;
+}
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         template<typename...> class Container,
+         typename CArg0, typename... CArgs,
+         typename Predicate, typename Transformer>
+auto copy_if_transform(const Container<CArg0, CArgs...>& container, const Predicate& predicate, const Transformer& transformer)
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using NewType = typename Internal::PredicateRetType<Transformer, ElementType>::type;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<NewType>, OverrideContainer<NewType>>;
+
+    ResultType result;
+    auto it = std::back_inserter(result);
+
+    size_t index = -1;
+    for (const auto& x : container) {
+        if (Internal::callPredicate(++index, predicate, x))
+            *it++ = Internal::callPredicate(index, transformer, x);
+    }
+
+    return result;
 }
 
 } // namespace utils_cpp
