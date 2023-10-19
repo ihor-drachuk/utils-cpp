@@ -56,6 +56,8 @@
  *        [] (size_t index, const auto& value) { return index !== 0 && value.empty(); }
 */
 
+template <class Key, class T> class QMap;
+
 namespace utils_cpp {
 
 namespace Internal {
@@ -161,6 +163,23 @@ template<typename Predicate, typename Item>
 struct PredicateRetType
 {
     using type = typename PredicateCallerSel<Predicate, Item>::RetType;
+};
+
+// Qt-compatibility
+template<typename Container>
+struct ValueFromMapHelper
+{
+    template<typename Iter> static  auto        value(Iter it)     { return it->second; }
+    template<typename Iter> static  const auto& valueCref(Iter it) { return it->second; }
+    template<typename Iter> static  auto&       valueRef(Iter it)  { return it->second; }
+};
+
+template<typename... Args>
+struct ValueFromMapHelper<QMap<Args...>>
+{
+    template<typename Iter> static  auto        value(Iter it)     { return *it; }
+    template<typename Iter> static  const auto& valueCref(Iter it) { return *it; }
+    template<typename Iter> static  auto&       valueRef(Iter it)  { return *it; }
 };
 
 } // namespace Internal
@@ -283,7 +302,7 @@ std::optional<RT> find_in_map(const Container& container, const KT& key)
 {
     auto it = container.find(key);
     return (it == std::cend(container)) ? std::optional<RT>() :
-                                          std::optional<RT>(it->second);
+                                          std::optional<RT>(Internal::ValueFromMapHelper<Container>::value(it));
 }
 
 template<typename T = void,
@@ -294,7 +313,7 @@ auto find_in_map_ref(Container& container, const KT& key)
 {
     auto it = container.find(key);
     return (it == std::end(container)) ? SearchResult<std::reference_wrapper<RT>, false>() :
-                                         SearchResult<std::reference_wrapper<RT>, false>(it->second);
+                                         SearchResult<std::reference_wrapper<RT>, false>(Internal::ValueFromMapHelper<Container>::valueRef(it));
 }
 
 template<typename T = void,
@@ -305,7 +324,7 @@ auto find_in_map_ref(const Container& container, const KT& key)
 {
     auto it = container.find(key);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, false>() :
-                                          SearchResult<std::reference_wrapper<const RT>, false>(it->second);
+                                          SearchResult<std::reference_wrapper<const RT>, false>(Internal::ValueFromMapHelper<Container>::valueCref(it));
 }
 
 template<typename T = void,
@@ -316,7 +335,7 @@ auto find_in_map_cref(const Container& container, const KT& key)
 {
     auto it = container.find(key);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, false>() :
-                                          SearchResult<std::reference_wrapper<const RT>, false>(it->second);
+                                          SearchResult<std::reference_wrapper<const RT>, false>(Internal::ValueFromMapHelper<Container>::valueCref(it));
 }
 
 // contains
