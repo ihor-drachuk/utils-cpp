@@ -15,7 +15,11 @@
  *   - find        (container, value)
  *   - find_if     (container, predicate)
  *   - find_in_map (map-container, value)
+ *  There are additional modifications of find functions:
+ *    _cref -  internally stores reference to found item instead of copying
+ *    _ref  -  same as above, but allows inplace modification
  *
+ *  Also:
  *   - contains     (container, value)
  *   - contains_if  (container, predicate)
  *   - contains_set (set-container, value)
@@ -23,10 +27,6 @@
  *
  *   - index_of     (container, value)
  *   - index_of_if  (container, predicate)
- *
- *  There are additional modifications of find functions:
- *    _cref  -  internally stores reference to found item instead of copying
- *    _ref  -   same as above, but allows inplace modification
  *
  *  Returned object is similar to `std::optional`, but also has `index` method:
  *   - operator  bool() const
