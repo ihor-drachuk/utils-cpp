@@ -14,7 +14,7 @@
  *  There are functions, which find value in container. By default copy of value is stored internally.
  *   - find        (container, value)
  *   - find_if     (container, predicate)
- *   - find_in_map (map-container, value)
+ *   - find_in_map (map-container, key)
  *  There are additional modifications of find functions:
  *    _cref -  internally stores reference to found item instead of copying
  *    _ref  -  same as above, but allows inplace modification
@@ -23,7 +23,7 @@
  *   - contains     (container, value)
  *   - contains_if  (container, predicate)
  *   - contains_set (set-container, value)
- *   - contains_map (map-container, value)
+ *   - contains_map (map-container, key)
  *
  *   - index_of     (container, value)
  *   - index_of_if  (container, predicate)
@@ -279,9 +279,9 @@ template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
          typename KT>
-std::optional<RT> find_in_map(const Container& container, const KT& value)
+std::optional<RT> find_in_map(const Container& container, const KT& key)
 {
-    auto it = container.find(value);
+    auto it = container.find(key);
     return (it == std::cend(container)) ? std::optional<RT>() :
                                           std::optional<RT>(it->second);
 }
@@ -290,9 +290,9 @@ template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
          typename KT>
-auto find_in_map_ref(Container& container, const KT& value)
+auto find_in_map_ref(Container& container, const KT& key)
 {
-    auto it = container.find(value);
+    auto it = container.find(key);
     return (it == std::end(container)) ? SearchResult<std::reference_wrapper<RT>, false>() :
                                          SearchResult<std::reference_wrapper<RT>, false>(it->second);
 }
@@ -301,9 +301,9 @@ template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
          typename KT>
-auto find_in_map_ref(const Container& container, const KT& value)
+auto find_in_map_ref(const Container& container, const KT& key)
 {
-    auto it = container.find(value);
+    auto it = container.find(key);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, false>() :
                                           SearchResult<std::reference_wrapper<const RT>, false>(it->second);
 }
@@ -312,9 +312,9 @@ template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::mapped_type, T>,
          typename KT>
-auto find_in_map_cref(const Container& container, const KT& value)
+auto find_in_map_cref(const Container& container, const KT& key)
 {
-    auto it = container.find(value);
+    auto it = container.find(key);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, false>() :
                                           SearchResult<std::reference_wrapper<const RT>, false>(it->second);
 }
@@ -348,9 +348,9 @@ bool contains_set(const Container& container, const KT& value)
 
 template<typename Container,
          typename KT>
-bool contains_map(const Container& container, const KT& value)
+bool contains_map(const Container& container, const KT& key)
 {
-    auto it = container.find(value);
+    auto it = container.find(key);
     return (it != std::cend(container));
 }
 
