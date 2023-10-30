@@ -57,6 +57,7 @@
 */
 
 template <class Key, class T> class QMap;
+template <class Key, class T> class QHash;
 
 namespace utils_cpp {
 
@@ -166,21 +167,26 @@ struct PredicateRetType
 };
 
 // Qt-compatibility
-template<typename Container>
-struct MapHelper
+template<typename T>       struct IsQtAssocContainer : std::false_type {};
+template<typename... Args> struct IsQtAssocContainer<QMap<Args...>> : std::true_type {};
+template<typename... Args> struct IsQtAssocContainer<QHash<Args...>> : std::true_type {};
+
+struct MapHelperStl
 {
     template<typename Iter> static  auto        value(Iter it)     { return it->second; }
     template<typename Iter> static  const auto& valueCref(Iter it) { return it->second; }
     template<typename Iter> static  auto&       valueRef(Iter it)  { return it->second; }
 };
 
-template<typename... Args>
-struct MapHelper<QMap<Args...>>
+struct MapHelperQt
 {
     template<typename Iter> static  auto        value(Iter it)     { return *it; }
     template<typename Iter> static  const auto& valueCref(Iter it) { return *it; }
     template<typename Iter> static  auto&       valueRef(Iter it)  { return *it; }
 };
+
+template<typename T>
+struct MapHelper : std::conditional_t<IsQtAssocContainer<T>::value, MapHelperQt, MapHelperStl> {};
 
 } // namespace Internal
 
