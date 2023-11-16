@@ -1,3 +1,7 @@
+/* License:  MIT
+ * Source:   https://github.com/ihor-drachuk/utils-cpp
+ * Contact:  ihor-drachuk-libs@pm.me  */
+
 #include <gtest/gtest.h>
 #include <utils-cpp/variant_eq_comparison.h>
 #include <string>

@@ -1,3 +1,7 @@
+/* License:  MIT
+ * Source:   https://github.com/ihor-drachuk/utils-cpp
+ * Contact:  ihor-drachuk-libs@pm.me  */
+
 #pragma once
 
 // These are helper-macros for the rule of 3/5
