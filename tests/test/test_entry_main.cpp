@@ -1,3 +1,7 @@
+/* License:  MIT
+ * Source:   https://github.com/ihor-drachuk/utils-cpp
+ * Contact:  ihor-drachuk-libs@pm.me  */
+
 #include "gtest/gtest.h"
 
 int main(int argc, char **argv) {

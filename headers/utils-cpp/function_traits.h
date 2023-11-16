@@ -1,3 +1,7 @@
+/* License:  MIT
+ * Source:   https://github.com/ihor-drachuk/utils-cpp
+ * Contact:  ihor-drachuk-libs@pm.me  */
+
 // Inspired by https://stackoverflow.com/a/9065203
 
 #pragma once
