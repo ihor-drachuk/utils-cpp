@@ -1,11 +1,15 @@
 #pragma once
 #include <cassert>
+#include "attributes.h"
+
+
 
 template<class T>
 class Singleton
 {
 public:
-    Singleton()
+    // The UB-San complains because at the time of this call T's ctor has not yet been called.
+    Singleton() UTIL_CPP_ATTR_UB
     {
         assert(!m_instance);
         m_instance = static_cast<T*>(this);
