@@ -9,7 +9,7 @@
   #endif
 #endif
 // gcc
-#if !defined(UTIL_CPP_ATTR_UB) && defined(__SANITIZE_ADDRESS__)
+#if !defined(UTIL_CPP_ATTR_UB) && defined(__GNUC__) 
     #define UTIL_CPP_ATTR_UB __attribute__((no_sanitize("undefined")))
 #endif
 // fallback
