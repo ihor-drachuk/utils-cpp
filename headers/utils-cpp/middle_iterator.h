@@ -60,7 +60,7 @@ public:
 
 private:
     void calculateOffset() {
-        auto sign = lround(pow(-1, m_index + 2));
+        auto sign = lround(pow(-1, static_cast<double>(m_index + 2)));
         m_offset = m_total / 2 + (m_index + 1) / 2 * sign;
     }
     void advance(int i) {

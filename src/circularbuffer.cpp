@@ -22,7 +22,7 @@ CircularBuffer::CircularBuffer(const CircularBuffer& rhs)
     m_size = rhs.m_size;
 }
 
-CircularBuffer::CircularBuffer(CircularBuffer&& rhs)
+CircularBuffer::CircularBuffer(CircularBuffer&& rhs) noexcept
 {
     assert(!rhs.m_moved);
     this->tie() = rhs.tie();
@@ -60,7 +60,7 @@ CircularBuffer& CircularBuffer::operator=(const CircularBuffer& rhs)
     return *this;
 }
 
-CircularBuffer& CircularBuffer::operator=(CircularBuffer&& rhs)
+CircularBuffer& CircularBuffer::operator=(CircularBuffer&& rhs) noexcept
 {
     assert(!rhs.m_moved);
 
