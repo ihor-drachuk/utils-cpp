@@ -11,11 +11,11 @@ class CircularBuffer
 public:
     CircularBuffer(size_t capacity);
     CircularBuffer(const CircularBuffer& rhs);
-    CircularBuffer(CircularBuffer&& rhs);
+    CircularBuffer(CircularBuffer&& rhs) noexcept;
     ~CircularBuffer();
 
     CircularBuffer& operator=(const CircularBuffer& rhs);
-    CircularBuffer& operator=(CircularBuffer&& rhs);
+    CircularBuffer& operator=(CircularBuffer&& rhs) noexcept;
 
     size_t size() const { return m_size; }
     size_t capacity() const { return m_capacity; }
