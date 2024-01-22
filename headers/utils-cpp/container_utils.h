@@ -42,6 +42,8 @@
  *   - index_of     (container, value)
  *   - index_of_if  (container, predicate)
  *
+ *   - all_of,    any_of,    none_of    (container, value,     default result if empty)
+ *   - all_of_if, any_of_if, none_of_if (container, predicate, default result if empty)
  *
  *
  *   --- COPY/MODIFICATION ---
@@ -439,6 +441,66 @@ std::optional<size_t> index_of_if(const Container& container, const Callable& pr
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? std::optional<size_t>() :
                                           std::optional<size_t>(std::distance(std::cbegin(container), it));
+}
+
+template<typename Container,
+         typename ItemType>
+bool all_of(const Container& container, const ItemType& value, bool defaultResult = true)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::all_of(std::cbegin(container), std::cend(container), [&value](const auto& item){ return item == value; });
+}
+
+template<typename Container,
+         typename ItemType>
+bool any_of(const Container& container, const ItemType& value, bool defaultResult = false)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::any_of(std::cbegin(container), std::cend(container), [&value](const auto& item){ return item == value; });
+}
+
+template<typename Container,
+         typename ItemType>
+bool none_of(const Container& container, const ItemType& value, bool defaultResult = true)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::none_of(std::cbegin(container), std::cend(container), [&value](const auto& item){ return item == value; });
+}
+
+template<typename Container,
+         typename Callable>
+bool all_of_if(const Container& container, const Callable& predicate, bool defaultResult = true)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::all_of(std::cbegin(container), std::cend(container), predicate);
+}
+
+template<typename Container,
+         typename Callable>
+bool any_of_if(const Container& container, const Callable& predicate, bool defaultResult = false)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::any_of(std::cbegin(container), std::cend(container), predicate);
+}
+
+template<typename Container,
+         typename Callable>
+bool none_of_if(const Container& container, const Callable& predicate, bool defaultResult = true)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::none_of(std::cbegin(container), std::cend(container), predicate);
 }
 
 template<template<typename...> class OverrideContainer = Internal::Empty,
