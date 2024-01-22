@@ -19,9 +19,19 @@
  *   - find        (container, value)
  *   - find_if     (container, predicate)
  *   - find_in_map (map-container, key)
- *  There are additional modifications of find functions:
- *    _cref -  internally stores reference to found item instead of copying
- *    _ref  -  same as above, but allows inplace modification
+ *
+ *    There are additional modifications of find functions:
+ *      _cref -  internally stores reference to found item instead of copying
+ *      _ref  -  same as above, but allows inplace modification
+ *
+ *    Returned object is similar to `std::optional`, but also has `index` method:
+ *     - operator  bool() const
+ *     - T&        value()
+ *     - T&        operator*
+ *     - T*        operator->
+ *     - bool      has_value() const
+ *     - T         value_or(const T& alternative) const
+ *     - size_t    index() const  -- unavailable for set and map containers!
  *
  *  Also:
  *   - contains     (container, value)
@@ -32,14 +42,6 @@
  *   - index_of     (container, value)
  *   - index_of_if  (container, predicate)
  *
- *  Returned object is similar to `std::optional`, but also has `index` method:
- *   - operator  bool() const
- *   - T&        value()
- *   - T&        operator*
- *   - T*        operator->
- *   - bool      has_value() const
- *   - T         value_or(const T& alternative) const
- *   - size_t    index() const  -- unavailable for set and map containers!
  *
  *
  *   --- COPY/MODIFICATION ---
@@ -61,6 +63,8 @@
 */
 
 template <class Key, class T> class QMap;
+template <class T> class QSet;
+template <class Key, class T> class QMultiMap;
 template <class Key, class T> class QHash;
 
 namespace utils_cpp {
@@ -173,6 +177,7 @@ struct PredicateRetType
 // Qt-compatibility
 template<typename T>       struct IsQtAssocContainer : std::false_type {};
 template<typename... Args> struct IsQtAssocContainer<QMap<Args...>> : std::true_type {};
+template<typename... Args> struct IsQtAssocContainer<QMultiMap<Args...>> : std::true_type {};
 template<typename... Args> struct IsQtAssocContainer<QHash<Args...>> : std::true_type {};
 
 struct MapHelperStl
@@ -191,6 +196,38 @@ struct MapHelperQt
 
 template<typename T>
 struct MapHelper : std::conditional_t<IsQtAssocContainer<T>::value, MapHelperQt, MapHelperStl> {};
+
+template <typename T>
+class QSetInserter
+{
+public:
+    using iterator_category = std::output_iterator_tag;
+    using value_type = void;
+    using difference_type = void;
+    using pointer = void;
+    using reference = void;
+
+    explicit QSetInserter(QSet<T>& set) : m_set(set) {}
+
+    QSetInserter& operator=(const T& value)
+    {
+        m_set.insert(value);
+        return *this;
+    }
+
+    QSetInserter& operator*() { return *this; }
+    QSetInserter& operator++() { return *this; }
+    QSetInserter& operator++(int) { return *this; }
+
+private:
+    QSet<T>& m_set;
+};
+
+template<typename T>
+auto getInserter(T& container) { return std::back_inserter(container); }
+
+template<typename T>
+auto getInserter(QSet<T>& set) { return QSetInserter<T>(set); }
 
 } // namespace Internal
 
@@ -413,7 +450,7 @@ auto copy_if(const Container& container, const Callable& predicate)
     using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container, OverrideContainer<ElementType>>;
 
     ResultType result;
-    auto it = std::back_inserter(result);
+    auto it = Internal::getInserter(result);
 
     size_t index = -1;
     for (const auto& x : container)
@@ -425,16 +462,29 @@ auto copy_if(const Container& container, const Callable& predicate)
 
 template<template<typename...> class OverrideContainer = Internal::Empty,
          template<typename...> class Container,
-         typename CArg0, typename... CArgs,
+         typename... CArgs,
          typename Transformer>
-auto transform(const Container<CArg0, CArgs...>& container, const Transformer& transformer)
+auto transform(const Container<CArgs...>& container, const Transformer& transformer)
 {
     using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
     using NewType = typename Internal::PredicateRetType<Transformer, ElementType>::type;
     using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<NewType>, OverrideContainer<NewType>>;
 
     ResultType result;
-    auto it = std::back_inserter(result);
+    auto it = Internal::getInserter(result);
+
+    size_t index = -1;
+    for (const auto& x : container)
+        *it++ = Internal::callPredicate(++index, transformer, x);
+
+    return result;
+}
+
+template<typename ResultingContainer, typename Container, typename Transformer>
+auto transform(const Container& container, const Transformer& transformer)
+{
+    ResultingContainer result;
+    auto it = Internal::getInserter(result);
 
     size_t index = -1;
     for (const auto& x : container)
@@ -445,16 +495,31 @@ auto transform(const Container<CArg0, CArgs...>& container, const Transformer& t
 
 template<template<typename...> class OverrideContainer = Internal::Empty,
          template<typename...> class Container,
-         typename CArg0, typename... CArgs,
+         typename... CArgs,
          typename Predicate, typename Transformer>
-auto copy_if_transform(const Container<CArg0, CArgs...>& container, const Predicate& predicate, const Transformer& transformer)
+auto copy_if_transform(const Container<CArgs...>& container, const Predicate& predicate, const Transformer& transformer)
 {
     using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
     using NewType = typename Internal::PredicateRetType<Transformer, ElementType>::type;
     using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<NewType>, OverrideContainer<NewType>>;
 
     ResultType result;
-    auto it = std::back_inserter(result);
+    auto it = Internal::getInserter(result);
+
+    size_t index = -1;
+    for (const auto& x : container) {
+        if (Internal::callPredicate(++index, predicate, x))
+            *it++ = Internal::callPredicate(index, transformer, x);
+    }
+
+    return result;
+}
+
+template<typename ResultingContainer, typename Container, typename Predicate, typename Transformer>
+auto copy_if_transform(const Container& container, const Predicate& predicate, const Transformer& transformer)
+{
+    ResultingContainer result;
+    auto it = Internal::getInserter(result);
 
     size_t index = -1;
     for (const auto& x : container) {
