@@ -66,7 +66,11 @@ TEST_P(StructOps3TestSuite, DataDrivenTest)
 
 } // namespace
 
-
+// clang-format off
+#ifdef UTILS_CPP_COMPILER_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-braces"
+#endif // UTILS_CPP_COMPILER_CLANG
 INSTANTIATE_TEST_SUITE_P(
     StructOps3TestGroup,
     StructOps3TestSuite,
@@ -86,3 +90,7 @@ INSTANTIATE_TEST_SUITE_P(
                      {0, 0, {}, 1}, {false, true, true,  true, false, false}}
     )
 );
+#ifdef UTILS_CPP_COMPILER_CLANG
+#pragma clang diagnostic pop
+#endif // UTILS_CPP_COMPILER_CLANG
+// clang-format on

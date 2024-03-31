@@ -213,7 +213,12 @@ jobs:
         run: |
           mkdir codechecker-reports
           # Also 'cppcheck' can be added to analyzers list
-          CodeChecker analyze -i build/skipfile.txt build/compile_commands.json -j $(nproc --all) -o report --analyzers clang-tidy clangsa
+          CodeChecker analyze \
+            -i build/skipfile.txt \
+            -j $(nproc --all) \
+            -o report \
+            build/compile_commands.json \
+            --analyzers clang-tidy clangsa
           CodeChecker parse ./report --trim-path-prefix "$(pwd)/src" | tee ./codechecker-reports/results.txt || true
           CodeChecker parse ./report --trim-path-prefix "$(pwd)/src" -e html -o ./codechecker-reports/html > /dev/null || true
           CodeChecker parse ./report --trim-path-prefix "$(pwd)/src" > /dev/null && touch ./ccOK || true

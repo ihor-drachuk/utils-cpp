@@ -21,4 +21,9 @@ else()
     target_compile_options(utils-cpp PRIVATE "-Werror")
 endif()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(UTILS_CPP_COMPILER_CLANG TRUE)
+    target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_COMPILER_CLANG=1)
+endif()
+
 add_subdirectory(tests)
