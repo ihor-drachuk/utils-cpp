@@ -45,7 +45,16 @@ jobs:
         run: |
           GTEST_SEARCH_MODE=$([[ "${{ matrix.test_libs }}" == "tl_missing" ]] && echo "Skip" || echo "Force")
           
-          cmake -DUTILS_CPP_ENABLE_TESTS=ON -DUTILS_CPP_ENABLE_BENCHMARK=ON -DUTILS_CPP_GTEST_SEARCH_MODE:STRING=$GTEST_SEARCH_MODE -DCMAKE_BUILD_TYPE="${{matrix.build_type}}" -G "Unix Makefiles" -S "./src" -B "./build"
+          cmake \
+            -Wdev -Werror=dev \
+            -Wdeprecated -Werror=deprecated \
+            -DUTILS_CPP_ENABLE_TESTS=ON \
+            -DUTILS_CPP_ENABLE_BENCHMARK=ON \
+            -DUTILS_CPP_GTEST_SEARCH_MODE:STRING=$GTEST_SEARCH_MODE \
+            -DCMAKE_BUILD_TYPE="${{matrix.build_type}}" \
+            -G "Unix Makefiles" \
+            -S "./src" \
+            -B "./build"
           cmake --build "./build" --config "${{matrix.build_type}}" -j "${{env.CORES}}"
           cd ./build/tests
           ctest --no-tests=error --rerun-failed --output-on-failure --timeout 30 -C "${{matrix.build_type}}"
