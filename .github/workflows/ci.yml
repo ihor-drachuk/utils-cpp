@@ -197,7 +197,15 @@ jobs:
           echo "-/usr/include/*" >> build/skipfile.txt
           echo "-/opt/Qt/*" >> build/skipfile.txt
           echo "-$(pwd)/build*" >> build/skipfile.txt
-          cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE="Debug" -S "./src" -B "./build" -G "Unix Makefiles"
+          cmake \
+            -DUTILS_CPP_ENABLE_TESTS=ON \
+            -DUTILS_CPP_ENABLE_BENCHMARK=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_BUILD_TYPE="Debug" \
+            -G "Unix Makefiles" \
+            -S "./src" \
+            -B "./build"
+          
           cmake --build "./build" --config "Debug" -j $(nproc --all)
 
       - name: "Run the analysis"
