@@ -11,7 +11,6 @@
 #include <list>
 #include <utils-cpp/container_utils.h>
 #include <utils-cpp/comparison_traits.h>
-#include <utils-cpp/as_const.h>
 #include <utils-cpp/checkmethod.h>
 
 CREATE_CHECK_METHOD(index)
@@ -110,7 +109,7 @@ TEST(utils_cpp, ContainerUtilsTest_ByCRef)
     ASSERT_FALSE((std::is_assignable_v<decltype(*valueA), int>));
     ASSERT_TRUE((CheckMethod::index_v<decltype(valueA)>));
 
-    auto valueB = utils_cpp::find_ref(utils_cpp::as_const(container), 3);
+    auto valueB = utils_cpp::find_ref(std::as_const(container), 3);
     container[2] = 10;
     ASSERT_EQ(*valueB, 10);
     ASSERT_EQ(valueB.index(), 2);
@@ -147,7 +146,7 @@ TEST(utils_cpp, ContainerUtilsTest_MapByCRef)
             {4, 44}
         };
 
-        auto value = utils_cpp::find_in_map_ref(utils_cpp::as_const(mapContainer), 2);
+        auto value = utils_cpp::find_in_map_ref(std::as_const(mapContainer), 2);
         ASSERT_EQ(*value, 22);
         mapContainer[2] = 220;
         ASSERT_EQ(*value, 220);
@@ -194,7 +193,7 @@ TEST(utils_cpp, ContainerUtilsTest_operators)
     (*res).testMethod();
     res->testMethod();
 
-    auto resConst = utils_cpp::find_ref(utils_cpp::as_const(container), SomeStruct());
+    auto resConst = utils_cpp::find_ref(std::as_const(container), SomeStruct());
     (*resConst).testMethodConst();
     resConst->testMethodConst();
 }
