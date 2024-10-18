@@ -3,7 +3,7 @@
  * Contact:  ihor-drachuk-libs@pm.me  */
 
 #include <gtest/gtest.h>
-#include <utils-cpp/lazyinit.h>
+#include <utils-cpp/lazy_init.h>
 
 static bool testFlag = false;
 
@@ -13,14 +13,20 @@ struct MyObj
     MyObj() { testFlag = true; }
 };
 
-TEST(utils_cpp, LazyInitTest)
+TEST(utils_cpp, lazy_init_test)
 {
-    LazyInit<MyObj> obj([]()->auto { return new MyObj(); });
+    utils_cpp::lazy_init<MyObj> obj;
     ASSERT_FALSE(testFlag);
     ASSERT_FALSE(obj);
     *obj;
     ASSERT_TRUE(testFlag);
     ASSERT_TRUE(obj);
 
-    LazyInit<MyObj> obj2(&MyObj::create);
+    testFlag = false;
+    utils_cpp::lazy_init_custom<MyObj> obj2(&MyObj::create);
+    ASSERT_FALSE(testFlag);
+    ASSERT_FALSE(obj2);
+    *obj2;
+    ASSERT_TRUE(testFlag);
+    ASSERT_TRUE(obj2);
 }

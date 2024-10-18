@@ -3,9 +3,9 @@
  * Contact:  ihor-drachuk-libs@pm.me  */
 
 #include <benchmark/benchmark.h>
-#include <utils-cpp/lazyinit.h>
+#include <utils-cpp/lazy_init.h>
 
-static void StubBenchmark(benchmark::State& state)
+static void benchmark_stub(benchmark::State& state)
 {
     int i = 0;
 
@@ -15,21 +15,21 @@ static void StubBenchmark(benchmark::State& state)
     (void)i;
 }
 
-BENCHMARK(StubBenchmark);
+BENCHMARK(benchmark_stub);
 
 
-static void LazyInitBenchmark(benchmark::State& state)
+static void benchmark_lazy_init(benchmark::State& state)
 {
     while (state.KeepRunning()) {
-        LazyInit<std::string> li = [](){return new std::string();};
+        utils_cpp::lazy_init<std::string> li;
         (void)li;
     }
 }
 
-BENCHMARK(LazyInitBenchmark);
+BENCHMARK(benchmark_lazy_init);
 
 
-static void LazyInitBenchmark_Off(benchmark::State& state)
+static void benchmark_lazy_init_off(benchmark::State& state)
 {
     while (state.KeepRunning()) {
         std::string str;
@@ -37,7 +37,7 @@ static void LazyInitBenchmark_Off(benchmark::State& state)
     }
 }
 
-BENCHMARK(LazyInitBenchmark_Off);
+BENCHMARK(benchmark_lazy_init_off);
 
 
 BENCHMARK_MAIN();
