@@ -2,8 +2,10 @@
  * Source:   https://github.com/ihor-drachuk/utils-cpp
  * Contact:  ihor-drachuk-libs@pm.me  */
 
+#include <cctype>
 #include <benchmark/benchmark.h>
 #include <utils-cpp/lazy_init.h>
+#include <utils-cpp/data_to_string.h>
 
 static void benchmark_stub(benchmark::State& state)
 {
@@ -38,6 +40,21 @@ static void benchmark_lazy_init_off(benchmark::State& state)
 }
 
 BENCHMARK(benchmark_lazy_init_off);
+
+
+static void benchmark_data_to_string(benchmark::State& state)
+{
+    std::string someData = "1234My567Data12";
+
+    for (size_t i = 0; i < someData.size(); i++)
+        if (std::isdigit(someData[i]))
+            someData[i] = i % 10;
+
+    while (state.KeepRunning())
+        (void)utils_cpp::data_to_string(someData.data(), someData.size());
+}
+
+BENCHMARK(benchmark_data_to_string);
 
 
 BENCHMARK_MAIN();
