@@ -22,7 +22,7 @@ public:
 
     template<typename Factory>
     lazy_init_base(const lazy_init_base<T>&) = delete;
-    ~lazy_init_base() { delete m_content; }
+    virtual ~lazy_init_base() { delete m_content; }
 
     lazy_init_base<T>& operator=(const lazy_init_base<T>&) = delete;
 
