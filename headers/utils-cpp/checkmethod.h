@@ -17,7 +17,7 @@ namespace CheckMethod { \
         static bool const value = std::is_same<decltype(check<T>(nullptr)), std::true_type>::value; \
     }; \
     template<class T> struct FunctionName: std::integral_constant<bool, CheckMethod::helper_##FunctionName<T>::value> {}; \
-    template<class T> static constexpr bool FunctionName##_v = FunctionName<T>::value; \
+    template<class T> [[maybe_unused]] static constexpr bool FunctionName##_v = FunctionName<T>::value; \
 } // namespace CheckMethod
 
 //    Example

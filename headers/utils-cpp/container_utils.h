@@ -91,14 +91,14 @@ public:
     PartBase(const T& data): m_data(data) {}
 
     bool has_value() const { return m_data.has_value(); }
-    explicit operator bool() const { return has_value(); };
+    explicit operator bool() const { return has_value(); }
 
     const UT& value() const { return m_data.value(); }
 
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr>
     UT& value() { return m_data.value(); }
 
-    UT value_or(const UT& altValue) const { return has_value() ? value() : altValue; }
+    UT value_or(const UT& altValue) const { return m_data.value_or(altValue); }
 
     operator std::optional<UT>() const { return has_value() ? std::optional<UT>(value()) : std::optional<UT>(); }
 
@@ -114,7 +114,7 @@ public:
     PartIndex() = default;
     PartIndex(const T& data, size_t index): PartBase<T, UT, rw_>(data), m_index(index) {}
 
-    size_t index() const { return static_cast<const PartBase<T, UT, rw_>*>(this)->value(), m_index; };
+    size_t index() const { return static_cast<const PartBase<T, UT, rw_>*>(this)->value(), m_index; }
 
 private:
     size_t m_index{};
@@ -135,11 +135,11 @@ public:
     template<bool needIndex = needIndex_, typename std::enable_if_t<!needIndex>* = nullptr>
     PartOperators(const T& data): Base(data) {}
 
-    template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& operator* () { return Base::value(); };
+    template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& operator* () { return Base::value(); }
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT* operator-> () { return &Base::value(); }
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& value() { return Base::value(); }
 
-    const UT& operator* () const { return Base::value(); };
+    const UT& operator* () const { return Base::value(); }
     const UT* operator-> () const { return &Base::value(); }
     const UT& value() const { return Base::value(); }
 };
@@ -231,6 +231,14 @@ auto getInserter(T& container) { return std::back_inserter(container); }
 template<typename T>
 auto getInserter(QSet<T>& set) { return QSetInserter<T>(set); }
 
+template<typename Iterator>
+size_t distance(Iterator first, Iterator last)
+{
+    const auto delta = std::distance(first, last);
+    assert(delta >= 0);
+    return static_cast<size_t>(delta);
+}
+
 } // namespace Internal
 
 
@@ -260,7 +268,7 @@ auto find(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
     return (it == std::cend(container)) ? SearchResult<RT, true>() :
-                                          SearchResult<RT, true>(*it, std::distance(std::cbegin(container), it));
+                                          SearchResult<RT, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
 template<typename T = void,
@@ -271,7 +279,7 @@ auto find_if(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? SearchResult<RT, true>() :
-                                          SearchResult<RT, true>(*it, std::distance(std::cbegin(container), it));
+                                          SearchResult<RT, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
 // Regular find functions (ref stored)
@@ -283,7 +291,7 @@ auto find_ref(Container& container, const RT& value)
 {
     auto it = std::find(std::begin(container), std::end(container), value);
     return (it == std::end(container)) ? SearchResult<std::reference_wrapper<RT>, true>() :
-                                         SearchResult<std::reference_wrapper<RT>, true>(*it, std::distance(std::begin(container), it));
+                                         SearchResult<std::reference_wrapper<RT>, true>(*it, Internal::distance(std::begin(container), it));
 }
 
 template<typename T = void,
@@ -294,7 +302,7 @@ auto find_if_ref(Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::begin(container), std::end(container), predicate);
     return (it == std::end(container)) ? SearchResult<std::reference_wrapper<RT>, true>() :
-                                         SearchResult<std::reference_wrapper<RT>, true>(*it, std::distance(std::begin(container), it));
+                                         SearchResult<std::reference_wrapper<RT>, true>(*it, Internal::distance(std::begin(container), it));
 }
 
 // Regular find functions (const-ref stored)
@@ -306,7 +314,7 @@ auto find_cref(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
-                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, std::distance(std::cbegin(container), it));
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
 template<typename T = void,
@@ -317,7 +325,7 @@ auto find_if_cref(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
-                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, std::distance(std::cbegin(container), it));
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
 template<typename T = void,
@@ -327,7 +335,7 @@ auto find_ref(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
-                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, std::distance(std::cbegin(container), it));
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
 template<typename T = void,
@@ -338,7 +346,7 @@ auto find_if_ref(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
-                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, std::distance(std::cbegin(container), it));
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
 // Find in map
@@ -431,7 +439,7 @@ std::optional<size_t> index_of(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
     return (it == std::cend(container)) ? std::optional<size_t>() :
-                                          std::optional<size_t>(std::distance(std::cbegin(container), it));
+                                          std::optional<size_t>(Internal::distance(std::cbegin(container), it));
 }
 
 template<typename Container,
@@ -440,7 +448,7 @@ std::optional<size_t> index_of_if(const Container& container, const Callable& pr
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? std::optional<size_t>() :
-                                          std::optional<size_t>(std::distance(std::cbegin(container), it));
+                                          std::optional<size_t>(Internal::distance(std::cbegin(container), it));
 }
 
 template<typename Container,
@@ -514,7 +522,7 @@ auto copy_if(const Container& container, const Callable& predicate)
     ResultType result;
     auto it = Internal::getInserter(result);
 
-    size_t index = -1;
+    size_t index = static_cast<size_t>(-1);
     for (const auto& x : container)
         if (Internal::callPredicate(++index, predicate, x))
             *it++ = x;
@@ -535,7 +543,7 @@ auto transform(const Container<CArgs...>& container, const Transformer& transfor
     ResultType result;
     auto it = Internal::getInserter(result);
 
-    size_t index = -1;
+    size_t index = static_cast<size_t>(-1);
     for (const auto& x : container)
         *it++ = Internal::callPredicate(++index, transformer, x);
 
@@ -548,7 +556,7 @@ auto transform(const Container& container, const Transformer& transformer)
     ResultingContainer result;
     auto it = Internal::getInserter(result);
 
-    size_t index = -1;
+    size_t index = static_cast<size_t>(-1);
     for (const auto& x : container)
         *it++ = Internal::callPredicate(++index, transformer, x);
 
@@ -568,7 +576,7 @@ auto copy_if_transform(const Container<CArgs...>& container, const Predicate& pr
     ResultType result;
     auto it = Internal::getInserter(result);
 
-    size_t index = -1;
+    size_t index = static_cast<size_t>(-1);
     for (const auto& x : container) {
         if (Internal::callPredicate(++index, predicate, x))
             *it++ = Internal::callPredicate(index, transformer, x);
@@ -583,7 +591,7 @@ auto copy_if_transform(const Container& container, const Predicate& predicate, c
     ResultingContainer result;
     auto it = Internal::getInserter(result);
 
-    size_t index = -1;
+    size_t index = static_cast<size_t>(-1);
     for (const auto& x : container) {
         if (Internal::callPredicate(++index, predicate, x))
             *it++ = Internal::callPredicate(index, transformer, x);
