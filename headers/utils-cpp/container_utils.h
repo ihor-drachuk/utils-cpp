@@ -181,6 +181,23 @@ struct PredicateRetType
     using type = typename PredicateCallerSel<Predicate, Item>::RetType;
 };
 
+// Methods checking
+namespace CU_Methods {
+
+template <typename, typename = void>
+struct has_push_back : std::false_type {};
+
+template <typename T>
+struct has_push_back<T, std::void_t<decltype(std::declval<T>().push_back(std::declval<typename T::value_type>()))>> : std::true_type {};
+
+template <typename, typename = void>
+struct has_insert : std::false_type {};
+
+template <typename T>
+struct has_insert<T, std::void_t<decltype(std::declval<T>().insert(std::declval<typename T::value_type>()))>> : std::true_type {};
+
+} // namespace CU_Methods
+
 // Qt-compatibility
 template<typename T>       struct IsQtAssocContainer : std::false_type {};
 template<typename... Args> struct IsQtAssocContainer<QMap<Args...>> : std::true_type {};
@@ -204,37 +221,43 @@ struct MapHelperQt
 template<typename T>
 struct MapHelper : std::conditional_t<IsQtAssocContainer<T>::value, MapHelperQt, MapHelperStl> {};
 
-template <typename T>
-class QSetInserter
+template <template<typename...> class C, typename T, typename... Args>
+class SetInserter
 {
 public:
+    using Container = C<T, Args...>;
     using iterator_category = std::output_iterator_tag;
     using value_type = void;
     using difference_type = void;
     using pointer = void;
     using reference = void;
 
-    explicit QSetInserter(QSet<T>& set) : m_set(set) {}
+    explicit SetInserter(Container& set) : m_set(set) {}
 
-    QSetInserter& operator=(const T& value)
+    SetInserter& operator=(const T& value)
     {
         m_set.insert(value);
         return *this;
     }
 
-    QSetInserter& operator*() { return *this; }
-    QSetInserter& operator++() { return *this; }
-    QSetInserter& operator++(int) { return *this; }
+    SetInserter& operator*() { return *this; }
+    SetInserter& operator++() { return *this; }
+    SetInserter& operator++(int) { return *this; }
 
 private:
-    QSet<T>& m_set;
+    Container& m_set;
 };
 
-template<typename T>
+template <template <typename...> class C, typename T, typename... Args>
+SetInserter(C<T, Args...>&) -> SetInserter<C, T, Args...>;
+
+template<typename T,
+         typename std::enable_if_t<CU_Methods::has_push_back<T>::value>* = nullptr>
 auto getInserter(T& container) { return std::back_inserter(container); }
 
-template<typename T>
-auto getInserter(QSet<T>& set) { return QSetInserter<T>(set); }
+template<typename T,
+         typename std::enable_if_t<!CU_Methods::has_push_back<T>::value && CU_Methods::has_insert<T>::value>* = nullptr>
+auto getInserter(T& set) { return SetInserter(set); }
 
 template<typename Iterator>
 size_t distance(Iterator first, Iterator last)
@@ -245,7 +268,6 @@ size_t distance(Iterator first, Iterator last)
 }
 
 } // namespace Internal
-
 
 template<typename T,
          bool needIndex_,
