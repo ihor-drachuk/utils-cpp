@@ -178,6 +178,11 @@ TEST(utils_cpp, ContainerUtilsTest_set)
 {
     std::set<int> container {1, 2, 3, 4};
     //auto r = utils_cpp::find_ref(container, 2); -- should fail, because std::set::iterator isn't modifiable
+
+    ASSERT_EQ(utils_cpp::transform<std::set>               (std::vector{1,2,3}, [](const auto& x){ return x; }), (std::set{1,2,3}));
+    ASSERT_EQ(utils_cpp::transform<std::multiset>          (std::vector{1,2,3}, [](const auto& x){ return x; }), (std::multiset{1,2,3}));
+    ASSERT_EQ(utils_cpp::transform<std::unordered_set>     (std::vector{1,2,3}, [](const auto& x){ return x; }), (std::unordered_set{1,2,3}));
+    ASSERT_EQ(utils_cpp::transform<std::unordered_multiset>(std::vector{1,2,3}, [](const auto& x){ return x; }), (std::unordered_multiset{1,2,3}));
 }
 
 TEST(utils_cpp, ContainerUtilsTest_operators)
