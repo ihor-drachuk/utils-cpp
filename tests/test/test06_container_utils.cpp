@@ -183,8 +183,8 @@ TEST(utils_cpp, ContainerUtilsTest_operators)
         int value {};
         bool operator==(const SomeStruct& rhs) const { return rhs.value == value; }
 
-        void testMethod() {};
-        void testMethodConst() const {};
+        void testMethod() {}
+        void testMethodConst() const {}
     };
 
     std::vector<SomeStruct> container {SomeStruct()};
