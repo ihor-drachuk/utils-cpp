@@ -241,6 +241,33 @@ TEST(utils_cpp, ContainerUtilsTest_transform)
     ASSERT_EQ(utils_cpp::transform(std::vector<int> {0,0,0}, [](size_t index, auto){ return std::to_string(index); }), (std::vector<std::string>{"0", "1", "2"}));
 }
 
+TEST(utils_cpp, ContainerUtilsTest_transform_reserve)
+{
+    // Reservable
+    struct MyVector : std::vector<int> {
+    public:
+        using std::vector<int>::vector;
+        void reserve(size_t) { m_reserved = true; }
+        bool reserved() const { return m_reserved; }
+    private:
+        bool m_reserved = false;
+    };
+
+    auto result1 = utils_cpp::copy_if_transform<MyVector>(std::vector<int> {1,2,3}, [](const auto&){ return true; }, [](auto v){ return v*2; });
+    ASSERT_EQ(result1, (MyVector{2, 4, 6}));
+    ASSERT_FALSE(result1.reserved());
+
+    auto result2 = utils_cpp::transform<MyVector>(std::vector<int> {1,2,3}, [](auto v){ return v*2; });
+    ASSERT_EQ(result2, (MyVector{2, 4, 6}));
+    ASSERT_TRUE(result2.reserved());
+
+    // Not reservable
+    auto result3 = utils_cpp::transform<std::set>(std::vector<int> {1,2,3}, [](auto v){ return v*2; });
+    ASSERT_TRUE(utils_cpp::contains_set(result3, 2));
+    ASSERT_TRUE(utils_cpp::contains_set(result3, 4));
+    ASSERT_TRUE(utils_cpp::contains_set(result3, 6));
+}
+
 TEST(utils_cpp, ContainerUtilsTest_copy_if_transform)
 {
     ASSERT_EQ(utils_cpp::copy_if_transform(

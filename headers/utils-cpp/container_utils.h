@@ -185,6 +185,12 @@ struct PredicateRetType
 namespace CU_Methods {
 
 template <typename, typename = void>
+struct has_reserve : std::false_type {};
+
+template <typename T>
+struct has_reserve<T, std::void_t<decltype(std::declval<T>().reserve(1))>> : std::true_type {};
+
+template <typename, typename = void>
 struct has_push_back : std::false_type {};
 
 template <typename T>
@@ -258,6 +264,17 @@ auto getInserter(T& container) { return std::back_inserter(container); }
 template<typename T,
          typename std::enable_if_t<!CU_Methods::has_push_back<T>::value && CU_Methods::has_insert<T>::value>* = nullptr>
 auto getInserter(T& set) { return SetInserter(set); }
+
+template<typename Container, bool = false>
+struct ReserverImpl                  { template<typename T> static void tryReserve(Container&, T) {} };
+template<typename Container>
+struct ReserverImpl<Container, true> { template<typename T> static void tryReserve(Container& c, T size) { c.reserve(size); } };
+
+template<typename Container, typename SizeT>
+void tryReserve(Container& container, SizeT size)
+{
+    ReserverImpl<Container, CU_Methods::has_reserve<Container>::value>::tryReserve(container, size);
+}
 
 template<typename Iterator>
 size_t distance(Iterator first, Iterator last)
@@ -568,6 +585,7 @@ auto transform(const Container<CArgs...>& container, const Transformer& transfor
     using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<NewType>, OverrideContainer<NewType>>;
 
     ResultType result;
+    Internal::tryReserve(result, container.size());
     auto it = Internal::getInserter(result);
 
     size_t index = static_cast<size_t>(-1);
@@ -581,6 +599,7 @@ template<typename ResultingContainer, typename Container, typename Transformer>
 auto transform(const Container& container, const Transformer& transformer)
 {
     ResultingContainer result;
+    Internal::tryReserve(result, container.size());
     auto it = Internal::getInserter(result);
 
     size_t index = static_cast<size_t>(-1);
