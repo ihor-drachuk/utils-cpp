@@ -62,6 +62,9 @@ TEST(utils_cpp, ContainerUtilsTest_ByCopy)
     ASSERT_EQ(utils_cpp::find(vector, 1).value(), 1);
     ASSERT_EQ(utils_cpp::find(vector, 2).value(), 2);
     ASSERT_EQ(utils_cpp::find(vector, 3).value(), 3);
+    ASSERT_EQ(utils_cpp::find(vector, 1).value_or_assert(), 1);
+    ASSERT_EQ(utils_cpp::find(vector, 2).value_or_assert(), 2);
+    ASSERT_EQ(utils_cpp::find(vector, 3).value_or_assert(), 3);
 
     ASSERT_TRUE(utils_cpp::find(list, 1).has_value());
     ASSERT_TRUE(utils_cpp::find(list, 2).has_value());

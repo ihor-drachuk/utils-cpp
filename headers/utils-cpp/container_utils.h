@@ -26,9 +26,10 @@
  *
  *    Returned object is similar to `std::optional`, but also has `index` method:
  *     - operator  bool() const
- *     - T&        value()
- *     - T&        operator*
- *     - T*        operator->
+ *     - T&        value()            -- throws
+ *     - T&        value_or_assert()  -- assert
+ *     - T&        operator*          -- assert
+ *     - T*        operator->         -- assert
  *     - bool      has_value() const
  *     - T         value_or(const T& alternative) const
  *     - size_t    index() const  -- unavailable for set and map containers!
@@ -94,9 +95,13 @@ public:
     explicit operator bool() const { return has_value(); }
 
     const UT& value() const { return m_data.value(); }
+    const UT& value_or_assert() const { assert(m_data); return *m_data; }
 
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr>
     UT& value() { return m_data.value(); }
+
+    template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr>
+    UT& value_or_assert() { assert(m_data); return *m_data; }
 
     UT value_or(const UT& altValue) const { return m_data.value_or(altValue); }
 
@@ -139,8 +144,8 @@ public:
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT* operator-> () { return &Base::value(); }
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& value() { return Base::value(); }
 
-    const UT& operator* () const { return Base::value(); }
-    const UT* operator-> () const { return &Base::value(); }
+    const UT& operator* () const { return Base::value_or_assert(); }
+    const UT* operator-> () const { return &Base::value_or_assert(); }
     const UT& value() const { return Base::value(); }
 };
 
