@@ -1,10 +1,10 @@
 /* License:  MIT
  * Source:   https://github.com/ihor-drachuk/utils-qt
  * Contact:  ihor-drachuk-libs@pm.me  */
-
 #include <utils-cpp/stdin_listener.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cassert>
 #include <cstring>
@@ -27,6 +27,29 @@ using ConsoleMode = int;
 namespace utils_cpp {
 
 namespace {
+
+const auto stopChecker = [](char x){
+    static constexpr auto lookup = [](){
+        std::array<unsigned char, 256> arr{};
+        arr[0x08] = 1;
+        arr[0x7F] = 1;
+        arr['\r'] = 1;
+        return arr;
+    }();
+
+    return lookup[static_cast<unsigned char>(x)];
+};
+
+const auto bkspChecker = [](char x){
+    static constexpr auto lookup = [](){
+        std::array<unsigned char, 256> arr{};
+        arr[0x08] = 1;
+        arr[0x7F] = 1;
+        return arr;
+    }();
+
+    return lookup[static_cast<unsigned char>(x)];
+};
 
 struct NewlineVariant
 {
@@ -86,9 +109,29 @@ void StdinListener::echo(const char* buffer, size_t size)
     assert(size > 0);
 
     if (impl().echoMode == EchoMode::On) {
-        fwrite(buffer, 1, size, stdout);
-        if (buffer[size-1] == '\r')
-            putchar('\n');
+        auto begin = buffer;
+        const auto end = buffer + size;
+
+        auto it = std::find_if(begin, end, stopChecker);
+        while (it != end) {
+            size_t length = static_cast<size_t>(it - begin);
+
+            if (*it == '\r') {
+                fwrite(begin, 1, length + 1, stdout);
+                fputc('\n', stdout);
+
+            } else {
+                assert(*it == 0x08 || *it == 0x7F);
+                fwrite(begin, 1, length, stdout);
+                fwrite("\b \b", 1, 3, stdout);
+            }
+
+            begin = it + 1;
+            it = std::find_if(begin, end, stopChecker);
+        }
+
+        size_t length = static_cast<size_t>(end - begin);
+        fwrite(begin, 1, length, stdout);
         fflush(stdout);
     }
 }
@@ -140,17 +183,58 @@ void StdinListener::listenForInput()
     char buffer[1024];
 
     while (!impl().stopFlag) {
-        if (auto size = readNonBlocking(buffer, sizeof(buffer))) {
+        if (const auto size = readNonBlocking(buffer, sizeof(buffer))) {
             echo(buffer, size);
 
             if (impl().newDataCallback)
                 impl().newDataCallback(buffer, size);
 
             if (impl().newLineCallback) {
+                auto begin = buffer;
+                const auto end = buffer + size;
+                size_t nlSearchOffset = impl().buffer.size();
+
+                impl().buffer.reserve(impl().buffer.size() + size);
+
+                auto it = std::find_if(begin, end, bkspChecker);
+                while (it != end) {
+                    assert(*it == 0x08 || *it == 0x7F);
+                    auto length = std::distance(begin, it);
+
+                    // it - points to started backspaces sequence
+                    // continueIt - points to the next character after backspaces sequence
+
+                    auto continueIt = std::find_if_not(it + 1, end, bkspChecker);
+                    const auto backspacesCount = std::distance(it, continueIt);
+                    length -= backspacesCount; // don't copy symbols we're going to delete
+
+                    if (length < 0) {
+                        // If there are more backspaces than characters to copy,
+                        // then remove rest from buffer, if there are enough data collected
+                        const auto rest = (std::min)(static_cast<size_t>(-length), impl().buffer.size());
+                        const auto newSize = impl().buffer.size() - rest;
+                        impl().buffer.resize(newSize);
+                        if (newSize < nlSearchOffset) // We can't search from previous buffer end, as we shortened it
+                            nlSearchOffset = newSize;
+
+                    } else {
+                        // length >= 0, so there is some data left after applied backspaces
+                        const auto lengthSzt = static_cast<size_t>(length);
+                        const auto offset = impl().buffer.size();
+                        impl().buffer.resize(offset + lengthSzt);
+                        memcpy(impl().buffer.data() + offset, begin, lengthSzt);
+                    }
+
+                    begin = continueIt;
+                    it = std::find_if(begin, end, bkspChecker);
+                }
+
+                const auto restSize = static_cast<size_t>(std::distance(begin, end));
                 const auto offset = impl().buffer.size();
-                impl().buffer.resize(offset + size);
-                memcpy(impl().buffer.data() + offset, buffer, size);
-                searchLines(offset);
+                impl().buffer.resize(offset + restSize);
+                memcpy(impl().buffer.data() + offset, begin, restSize);
+
+                searchLines(nlSearchOffset);
             }
         }
 
