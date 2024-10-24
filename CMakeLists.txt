@@ -13,6 +13,9 @@ add_library(utils-cpp STATIC ${SOURCES})
 target_include_directories(utils-cpp PUBLIC headers)
 target_compile_features(utils-cpp PUBLIC cxx_std_17)
 
+find_package(Threads REQUIRED)
+target_link_libraries(utils-cpp PUBLIC Threads::Threads)
+
 if(MSVC)
     target_link_options(utils-cpp PRIVATE "/ignore:4221")
     set_target_properties(utils-cpp PROPERTIES STATIC_LIBRARY_OPTIONS "/ignore:4221")
