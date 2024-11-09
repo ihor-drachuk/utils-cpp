@@ -49,10 +49,13 @@
  *
  *   --- COPY/MODIFICATION ---
  *
- *   - copy_if(container, predicate)
- *   - transform(container, transformer)
- *   - copy_if_transform(container, predicate, transformer)
- *   - erase_if(container, predicate)
+ *   - copy_if   (container, predicate)
+ *   - transform (container, transformer)
+ *   - copy_if_transform (container, predicate, transformer)
+ *
+ *   - erase_all_vec (container, value-or-predicate) - shift elements and erase tail
+ *   - erase_all     (container, value-or-predicate) - erase each element separately
+ *   - erase_one     (container, value-or-predicate) - erase single element
  *
  *   Notice:
  *    - By default, return type is same container of same types (copy_if) or
@@ -283,6 +286,15 @@ size_t distance(Iterator first, Iterator last)
     const auto delta = std::distance(first, last);
     assert(delta >= 0);
     return static_cast<size_t>(delta);
+}
+
+template<typename T, typename PredicateOrValue>
+inline bool match(size_t index, const T& item, const PredicateOrValue& predicateOrValue)
+{
+    if constexpr (std::is_invocable_r_v<bool, PredicateOrValue, const T&> || std::is_invocable_r_v<bool, PredicateOrValue, size_t, const T&>)
+        return callPredicate(index, predicateOrValue, item);
+    else
+        return item == predicateOrValue;
 }
 
 } // namespace Internal
@@ -647,15 +659,15 @@ auto copy_if_transform(const Container& container, const Predicate& predicate, c
     return result;
 }
 
-template<typename Container, typename Predicate>
-void erase_if(Container& container, const Predicate& predicate)
+template<typename Container, typename PredicateOrValue>
+void erase_all_vec(Container& container, const PredicateOrValue& predicateOrValue)
 {
     size_t index = 0;
     auto it = std::begin(container);
     const auto end = std::end(container);
 
     while (it != end) {
-        if (Internal::callPredicate(index, predicate, *it))
+        if (Internal::match(index, *it, predicateOrValue))
             break;
 
         ++it;
@@ -668,13 +680,49 @@ void erase_if(Container& container, const Predicate& predicate)
     auto next = it;
 
     while (++it != end) {
-        if (!Internal::callPredicate(++index, predicate, *it)) {
+        if (!Internal::match(++index, *it, predicateOrValue)) {
             *next = std::move(*it);
             ++next;
         }
     }
 
     container.erase(next, end);
+}
+
+template<typename Container, typename PredicateOrValue>
+void erase_all(Container& container, const PredicateOrValue& predicateOrValue)
+{
+    size_t index = 0;
+    auto it = std::begin(container);
+
+    while (it != std::end(container)) {
+        if (Internal::match(index, *it, predicateOrValue)) {
+            it = container.erase(it);
+            ++index;
+
+        } else {
+            ++it;
+            ++index;
+        }
+    }
+}
+
+template<typename Container, typename PredicateOrValue>
+void erase_one(Container& container, const PredicateOrValue& predicateOrValue)
+{
+    size_t index = 0;
+    auto it = std::begin(container);
+
+    while (it != std::end(container)) {
+        if (Internal::match(index, *it, predicateOrValue)) {
+            container.erase(it);
+            break;
+
+        } else {
+            ++it;
+            ++index;
+        }
+    }
 }
 
 } // namespace utils_cpp
