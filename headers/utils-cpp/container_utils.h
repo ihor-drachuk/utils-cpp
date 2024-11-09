@@ -52,6 +52,7 @@
  *   - copy_if(container, predicate)
  *   - transform(container, transformer)
  *   - copy_if_transform(container, predicate, transformer)
+ *   - erase_if(container, predicate)
  *
  *   Notice:
  *    - By default, return type is same container of same types (copy_if) or
@@ -644,6 +645,36 @@ auto copy_if_transform(const Container& container, const Predicate& predicate, c
     }
 
     return result;
+}
+
+template<typename Container, typename Predicate>
+void erase_if(Container& container, const Predicate& predicate)
+{
+    size_t index = 0;
+    auto it = std::begin(container);
+    const auto end = std::end(container);
+
+    while (it != end) {
+        if (Internal::callPredicate(index, predicate, *it))
+            break;
+
+        ++it;
+        ++index;
+    }
+
+    if (it == end)
+        return;
+
+    auto next = it;
+
+    while (++it != end) {
+        if (!Internal::callPredicate(++index, predicate, *it)) {
+            *next = std::move(*it);
+            ++next;
+        }
+    }
+
+    container.erase(next, end);
 }
 
 } // namespace utils_cpp
