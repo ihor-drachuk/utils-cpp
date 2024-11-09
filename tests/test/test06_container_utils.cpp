@@ -288,3 +288,48 @@ TEST(utils_cpp, ContainerUtilsTest_copy_if_transform)
                   [](size_t index, int){ return std::to_string(index); }),
               (std::vector<std::string>{"0", "1", "2", "3"}));
 }
+
+TEST(utils_cpp, ContainerUtilsTest_erase_if)
+{
+    {
+        std::vector<int> container {2, 2, 4, 6, 7};
+        utils_cpp::erase_if(container, [](auto v){ return v % 2; });
+        ASSERT_EQ(container, (std::vector<int>{2, 2, 4, 6}));
+    }
+
+    {
+        std::vector<int> container {2, 2, 4, 6, 7};
+        utils_cpp::erase_if(container, [](size_t index, auto){ return index % 2; });
+        ASSERT_EQ(container, (std::vector<int>{2, 4, 7}));
+    }
+
+    {
+        std::vector<int> container {};
+        utils_cpp::erase_if(container, [](auto v){ return v > 10; });
+        ASSERT_EQ(container, (std::vector<int>{}));
+    }
+
+    {
+        std::vector<int> container {1};
+        utils_cpp::erase_if(container, [](auto v){ return v > 10; });
+        ASSERT_EQ(container, (std::vector<int>{1}));
+    }
+
+    {
+        std::vector<int> container {11};
+        utils_cpp::erase_if(container, [](auto v){ return v > 10; });
+        ASSERT_EQ(container, (std::vector<int>{}));
+    }
+
+    {
+        std::vector<int> container {11, 9};
+        utils_cpp::erase_if(container, [](auto v){ return v > 10; });
+        ASSERT_EQ(container, (std::vector<int>{9}));
+    }
+
+    {
+        std::vector<int> container {9, 11};
+        utils_cpp::erase_if(container, [](auto v){ return v > 10; });
+        ASSERT_EQ(container, (std::vector<int>{9}));
+    }
+}
