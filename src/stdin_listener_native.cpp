@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <thread>
 
@@ -31,7 +32,7 @@ StdinListenerNative::StdinListenerNative(const NewLineHandler& lineCallback)
     assert(lineCallback);
 
     impl().lineCallback = lineCallback;
-    impl().thread = std::thread(std::bind(&StdinListenerNative::readLoop, this));
+    impl().thread = std::thread([this] { readLoop(); });
 }
 
 StdinListenerNative::~StdinListenerNative()
@@ -41,8 +42,12 @@ StdinListenerNative::~StdinListenerNative()
 #ifdef _WIN32
     // On Windows we can cancel pending I/O operations
     HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
-    if (stdinHandle != INVALID_HANDLE_VALUE)
+    if (stdinHandle != INVALID_HANDLE_VALUE) {
         CancelIoEx(stdinHandle, nullptr);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        CancelIoEx(stdinHandle, nullptr);
+    }
+
 #else
     // On POSIX systems, close() on stdin's fd will interrupt blocking read
     int fd = STDIN_FILENO;  // or fileno(stdin)
