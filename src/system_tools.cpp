@@ -1,0 +1,41 @@
+/* License:  MIT
+ * Source:   https://github.com/ihor-drachuk/utils-cpp
+ * Contact:  ihor-drachuk-libs@pm.me  */
+
+#include <utils-cpp/system_tools.h>
+
+#ifdef UTILS_CPP_OS_WINDOWS
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
+
+namespace utils_cpp {
+
+std::optional<bool> hasAdminRights()
+{
+#ifdef UTILS_CPP_OS_WINDOWS
+    BOOL isAdmin = FALSE;
+    PSID adminGroup = nullptr;
+
+    // Allocate and initialize a SID of the Administrators group
+    SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+    if (!AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &adminGroup))
+        return {};
+
+    // Check if the token of the calling process is a member of the Administrators group
+    if (!CheckTokenMembership(nullptr, adminGroup, &isAdmin))
+        return {};
+
+    // Clean up
+    if (adminGroup)
+        FreeSid(adminGroup);
+
+    return isAdmin == TRUE;
+
+#else
+    return getuid() == 0;
+#endif // UTILS_CPP_OS_WINDOWS
+}
+
+} // namespace utils_cpp
