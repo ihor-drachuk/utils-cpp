@@ -2,6 +2,12 @@
  * Source:   https://github.com/ihor-drachuk/utils-qt
  * Contact:  ihor-drachuk-libs@pm.me  */
 
+#ifdef UTILS_CPP_OS_WINDOWS
+#ifdef UTILS_CPP_COMPILER_MINGW
+#define _WIN32_WINNT 0x0601 // NOLINT
+#endif // UTILS_CPP_COMPILER_MINGW
+#endif // UTILS_CPP_OS_WINDOWS
+
 #include <utils-cpp/stdin_listener_native.h>
 
 #include <atomic>

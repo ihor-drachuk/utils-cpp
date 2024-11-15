@@ -39,6 +39,16 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(UTILS_CPP_COMPILER_GCC TRUE)
     target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_COMPILER_GCC=1)
 
+    # Check specifically for MinGW
+    if (${CMAKE_SYSTEM_NAME} MATCHES "MINGW" OR
+        ${CMAKE_SYSTEM_NAME} MATCHES "MSYS" OR
+        ${CMAKE_SYSTEM_NAME} MATCHES "CYGWIN" OR
+        ${CMAKE_SYSTEM_NAME} MATCHES "Windows" OR
+        ${CMAKE_CXX_COMPILER} MATCHES "mingw")
+        set(UTILS_CPP_COMPILER_MINGW TRUE)
+        target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_COMPILER_MINGW=1)
+    endif()
+
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(UTILS_CPP_COMPILER_CLANG TRUE)
     target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_COMPILER_CLANG=1)
