@@ -10,11 +10,11 @@
 #include <iostream>
 #include <thread>
 
-#ifdef _WIN32
+#ifdef UTILS_CPP_OS_WINDOWS
 #include <Windows.h>
 #else
 #include <unistd.h>
-#endif // _WIN32
+#endif // UTILS_CPP_OS_WINDOWS
 
 namespace utils_cpp {
 
@@ -39,7 +39,7 @@ StdinListenerNative::~StdinListenerNative()
 {
     impl().running = false;
 
-#ifdef _WIN32
+#ifdef UTILS_CPP_OS_WINDOWS
     // On Windows we can cancel pending I/O operations
     HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
     if (stdinHandle != INVALID_HANDLE_VALUE) {
@@ -52,7 +52,7 @@ StdinListenerNative::~StdinListenerNative()
     // On POSIX systems, close() on stdin's fd will interrupt blocking read
     int fd = STDIN_FILENO;  // or fileno(stdin)
     close(dup(fd));  // Duplicate and close to avoid closing the original fd
-#endif // _WIN32
+#endif // UTILS_CPP_OS_WINDOWS
 
     if (impl().thread.joinable())
         impl().thread.join();

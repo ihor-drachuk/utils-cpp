@@ -11,7 +11,7 @@
 #include <thread>
 #include <vector>
 
-#ifdef _WIN32
+#ifdef UTILS_CPP_OS_WINDOWS
 #include <Windows.h>
 #include <io.h>
 #define isatty _isatty
@@ -22,7 +22,7 @@ using ConsoleMode = DWORD;
 #include <termios.h>
 #include <unistd.h>
 using ConsoleMode = int;
-#endif // _WIN32
+#endif // UTILS_CPP_OS_WINDOWS
 
 namespace utils_cpp {
 
@@ -246,35 +246,35 @@ void StdinListener::listenForInput()
 
 void StdinListener::setNonBlockingMode()
 {
-#ifdef _WIN32
+#ifdef UTILS_CPP_OS_WINDOWS
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     GetConsoleMode(hStdin, &impl().consoleMode);
     SetConsoleMode(hStdin, impl().consoleMode & ~ENABLE_LINE_INPUT);
 #else
     impl().consoleMode = fcntl(STDIN_FILENO, F_GETFL, 0);
     fcntl(STDIN_FILENO, F_SETFL, impl().consoleMode | O_NONBLOCK);
-#endif // _WIN32
+#endif // UTILS_CPP_OS_WINDOWS
 }
 
 void StdinListener::resetBlockingMode()
 {
-#ifdef _WIN32
+#ifdef UTILS_CPP_OS_WINDOWS
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     SetConsoleMode(hStdin, impl().consoleMode);
 #else
     fcntl(STDIN_FILENO, F_SETFL, impl().consoleMode);
-#endif // _WIN32
+#endif // UTILS_CPP_OS_WINDOWS
 }
 
 size_t StdinListener::readNonBlocking(char* buffer, size_t sz)
 {
-#ifdef _WIN32
+#ifdef UTILS_CPP_OS_WINDOWS
     DWORD bytesRead {};
     const auto status = ReadFile(GetStdHandle(STD_INPUT_HANDLE), buffer, sz, &bytesRead, nullptr);
     return status ? bytesRead : 0;
 #else
     return read(STDIN_FILENO, buffer, sz);
-#endif // _WIN32
+#endif // UTILS_CPP_OS_WINDOWS
 }
 
 } // namespace utils_cpp
