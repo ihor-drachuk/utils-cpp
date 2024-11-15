@@ -4,6 +4,7 @@
 
 #pragma once
 #include <utility>
+#include <cassert>
 
 template<typename Functor>
 class scoped_guard {
@@ -16,6 +17,9 @@ public:
     scoped_guard<Functor>& operator=(const scoped_guard<Functor>&) = delete;
     scoped_guard<Functor>& operator=(scoped_guard<Functor>&& rhs) noexcept {
         if (this == &rhs) return *this;
+
+        assert((m_moved || m_reset) && "LHS scoped_guard is still in use!");
+        assert(!rhs.m_moved);
 
         m_f = rhs.m_f;
         m_reset = rhs.m_reset;
