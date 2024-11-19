@@ -59,6 +59,49 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     endif()
 endif()
 
+# Detect architecture
+if(CMAKE_OSX_ARCHITECTURES)
+    set(TARGET_ARCHITECTURE ${CMAKE_OSX_ARCHITECTURES})
+else()
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
+        set(UTILS_CPP_ARCH "x86_64")
+
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i386|i686")
+        set(UTILS_CPP_ARCH "x86")
+
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7l|arm|aarch64")
+        set(UTILS_CPP_ARCH "ARM")
+
+    elseif(UTILS_CPP_COMPILER_GCC)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND DEFINED _M_ARM64)
+            set(UTILS_CPP_ARCH "ARM64")
+        elseif(CMAKE_SIZEOF_VOID_P EQUAL 4 AND DEFINED _M_ARM)
+            set(UTILS_CPP_ARCH "ARM")
+        endif()
+    else()
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(UTILS_CPP_ARCH "x86_64")
+        elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+            set(UTILS_CPP_ARCH "x86")
+        else()
+            set(UTILS_CPP_ARCH "unknown")
+        endif()
+    endif()
+endif()
+
+if (UTILS_CPP_ARCH MATCHES "x86_64")
+    set(UTILS_CPP_ARCH_X86_64 TRUE)
+    target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_ARCH_X86_64=1)
+
+elseif (UTILS_CPP_ARCH MATCHES "x86")
+    set(UTILS_CPP_ARCH_X86 TRUE)
+    target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_ARCH_X86=1)
+
+elseif (UTILS_CPP_ARCH MATCHES "ARM|ARM64")
+    set(UTILS_CPP_ARCH_ARM TRUE)
+    target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_ARCH_ARM=1)
+endif()
+
 # Tune flags
 if(UTILS_CPP_COMPILER_MSVC)
     target_link_options(utils-cpp PRIVATE "/ignore:4221")
