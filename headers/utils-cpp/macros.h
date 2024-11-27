@@ -4,3 +4,11 @@
 
 #define STRINGIFY(x) #x
 #define TO_STRING(x) STRINGIFY(x)
+
+#define COND_ACT_RETURN(Condition, Action, ReturnValue) \
+    do { \
+        if (Condition) { \
+            Action; \
+            return ReturnValue; \
+        } \
+    } while (0)
