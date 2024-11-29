@@ -10,6 +10,8 @@ if (NOT UTILS_CPP_ENABLE_TESTS AND NOT UTILS_CPP_ENABLE_BENCHMARK)
     return()
 endif()
 
+add_subdirectory(common)
+
 include(FetchContent)
 
 if (UTILS_CPP_ENABLE_TESTS)
