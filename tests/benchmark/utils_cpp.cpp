@@ -6,6 +6,9 @@
 #include <benchmark/benchmark.h>
 #include <utils-cpp/lazy_init.h>
 #include <utils-cpp/data_to_string.h>
+#include <utils-cpp/xor.h>
+#include <utils-cpp/functor_iterator.h>
+#include "internal/data_10kb.h"
 
 static void benchmark_stub(benchmark::State& state)
 {
@@ -55,6 +58,56 @@ static void benchmark_data_to_string(benchmark::State& state)
 }
 
 BENCHMARK(benchmark_data_to_string);
+
+
+static void benchmark_xor_bytes(benchmark::State& state)
+{
+    auto buffer = data_10kb_1();
+    const auto mask = data_10kb_2();
+
+    while (state.KeepRunning()) {
+        auto itDst = buffer.begin();
+        auto itDstEnd = buffer.end();
+        auto itSrc = mask.begin();
+
+        while (itDst != itDstEnd)
+            *itDst++ ^= *itSrc++;
+    }
+
+    (void)buffer;
+}
+
+BENCHMARK(benchmark_xor_bytes);
+
+
+static void benchmark_xor_buffer(benchmark::State& state)
+{
+    auto buffer = data_10kb_1();
+    const auto mask = data_10kb_2();
+
+    while (state.KeepRunning())
+        utils_cpp::xorBuffer(buffer.data(), mask.data(), buffer.size());
+
+    (void)buffer;
+}
+
+BENCHMARK(benchmark_xor_buffer);
+
+
+static void benchmark_xor_bufferIt(benchmark::State& state)
+{
+    auto buffer = data_10kb_1();
+    const auto mask = data_10kb_2();
+
+    auto functor = [it = mask.begin()]() mutable { return *it++; };
+
+    while (state.KeepRunning())
+        utils_cpp::xorBufferIt(buffer.data(), buffer.data() + buffer.size(), functor_iterator(functor));
+
+    (void)buffer;
+}
+
+BENCHMARK(benchmark_xor_bufferIt);
 
 
 BENCHMARK_MAIN();

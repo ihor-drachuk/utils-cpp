@@ -6,7 +6,7 @@ foreach( testsourcefile ${SOURCES} )
     find_package(Threads REQUIRED)
 
     add_executable( benchmark-${testname} ${testsourcefile} )
-    target_link_libraries(benchmark-${testname} gtest benchmark Threads::Threads ${PROJECT_NAME})
+    target_link_libraries(benchmark-${testname} gtest benchmark Threads::Threads ${PROJECT_NAME} ${PROJECT_NAME}-test-common)
 
     add_test(NAME benchmark-${testname}-runner COMMAND benchmark-${testname})
 endforeach( testsourcefile ${APP_SOURCES} )
