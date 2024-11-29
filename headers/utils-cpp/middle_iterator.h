@@ -4,7 +4,6 @@
 
 #pragma once
 #include <iterator>
-#include <tuple>
 #include <cmath>
 #include <cassert>
 
@@ -12,6 +11,7 @@ template<typename Iter>
 class middle_iterator
 {
 public:
+    using This = middle_iterator<Iter>;
     using iterator_category = std::random_access_iterator_tag;
     using difference_type = int;
     using value_type = typename Iter::value_type;
@@ -36,27 +36,30 @@ public:
         calculateOffset();
     }
 
+    middle_iterator(const This&) = default;
+    middle_iterator& operator=(const This&) = default;
+
     reference operator*() { assert(isValid()); return *(m_begin + m_offset); }
     pointer operator->() { assert(isValid()); return &**this; }
 
-    bool operator== (const middle_iterator<Iter>& rhs) const { return m_index == rhs.m_index; }
-    bool operator!= (const middle_iterator<Iter>& rhs) const { return m_index != rhs.m_index; }
-    bool operator<  (const middle_iterator<Iter>& rhs) const { return m_index <  rhs.m_index; }
-    bool operator<= (const middle_iterator<Iter>& rhs) const { return m_index <= rhs.m_index; }
-    bool operator>  (const middle_iterator<Iter>& rhs) const { return m_index >  rhs.m_index; }
-    bool operator>= (const middle_iterator<Iter>& rhs) const { return m_index >= rhs.m_index; }
+    bool operator== (const This& rhs) const { return m_index == rhs.m_index; }
+    bool operator!= (const This& rhs) const { return m_index != rhs.m_index; }
+    bool operator<  (const This& rhs) const { return m_index <  rhs.m_index; }
+    bool operator<= (const This& rhs) const { return m_index <= rhs.m_index; }
+    bool operator>  (const This& rhs) const { return m_index >  rhs.m_index; }
+    bool operator>= (const This& rhs) const { return m_index >= rhs.m_index; }
 
-    middle_iterator<Iter>& operator++() { advance(1); return *this; }
-    middle_iterator<Iter>  operator++(int) { middle_iterator<Iter> n = *this; advance(1); return n; }
-    middle_iterator<Iter>& operator--() { advance(-1); return *this; }
-    middle_iterator<Iter>  operator--(int) { middle_iterator<Iter> n = *this; advance(-1); return n; }
-    middle_iterator<Iter>& operator+=(int i) { advance(i); return *this; }
-    middle_iterator<Iter>& operator-=(int i) { advance(-i); return *this; }
-    middle_iterator<Iter>  operator+(int i) const { return middle_iterator<Iter>(m_begin, m_end, m_offset + i); }
-    middle_iterator<Iter>  operator-(int i) const { return middle_iterator<Iter>(m_begin, m_end, m_offset - i); }
+    This& operator++() { advance(1); return *this; }
+    This  operator++(int) { middle_iterator<Iter> n = *this; advance(1); return n; }
+    This& operator--() { advance(-1); return *this; }
+    This  operator--(int) { middle_iterator<Iter> n = *this; advance(-1); return n; }
+    This& operator+=(int i) { advance(i); return *this; }
+    This& operator-=(int i) { advance(-i); return *this; }
+    This  operator+(int i) const { return middle_iterator<Iter>(m_begin, m_end, m_offset + i); }
+    This  operator-(int i) const { return middle_iterator<Iter>(m_begin, m_end, m_offset - i); }
     difference_type operator-(const middle_iterator<Iter>& rhs) const { return m_index - rhs.m_index; }
 
-    bool isValid() const { return m_index < m_total; };
+    bool isValid() const { return m_index < m_total; }
 
 private:
     void calculateOffset() {
@@ -74,6 +77,9 @@ private:
     size_t m_index {};
     size_t m_offset {};
 };
+
+template<typename Iter> middle_iterator(Iter, Iter) -> middle_iterator<Iter>;
+template<typename Iter> middle_iterator(Iter, Iter, size_t) -> middle_iterator<Iter>;
 
 template<typename Iter> middle_iterator<Iter> make_middle_iterator(Iter begin, Iter end) { return middle_iterator<Iter>(begin, end); }
 template<typename Iter> middle_iterator<Iter> make_middle_iterator(Iter begin, Iter end, size_t index) { return middle_iterator<Iter>(begin, end, index); }
