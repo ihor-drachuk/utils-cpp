@@ -67,6 +67,22 @@
  *    - Predicate and transformer can have index of currently processed item. I.e. both variants are valid:
  *        [] (const auto& value) { return value.empty(); }
  *        [] (size_t index, const auto& value) { return index !== 0 && value.empty(); }
+ *
+ *
+ *   --- DIFFERENCE ---
+ *   - difference_sorted(container1, container2)
+ *     difference_sorted(container1, container2, compare)
+ *     Returns: container1 - container2. Operates on sorted containers only (e.g.: std::set, sorted std::vector).
+ *
+ *   - difference_sorted_detailed(container1, container2, addedHandler, removedHandler)
+ *     difference_sorted_detailed(container1, container2, addedHandler, removedHandler, compare)
+ *
+ *        AddedHandler:   void (auto srcItBegin, auto srcItEnd, int64_t insertionIndex)
+ *        RemovedHandler: void (int64_t minIndex, int64_t maxIndex)
+ *        (To be more precise, `container1::difference_type` is used instead of `int64_t`)
+ *
+ *     Behavior: this function calls `addedHandler` and `removedHandler` so container1 could be "upgraded"
+ *     to container2 by provided data. First `addedHandler`s are called, then `removedHandler`s.
 */
 
 template <class Key, class T> class QMap;
@@ -243,6 +259,8 @@ public:
     using reference = void;
 
     explicit SetInserter(Container& set) : m_set(set) {}
+    SetInserter(const SetInserter& other) : m_set(other.m_set) {}
+    SetInserter& operator=(const SetInserter& other) { m_set = other.m_set; return *this; }
 
     SetInserter& operator=(const T& value)
     {
@@ -721,6 +739,108 @@ void erase_one(Container& container, const PredicateOrValue& predicateOrValue)
         } else {
             ++it;
             ++index;
+        }
+    }
+}
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         typename Compare = std::less<>,
+         template<typename...> class Container,
+         typename... CArgs,
+         typename AnotherContainer>
+auto difference_sorted(const Container<CArgs...>& container1, const AnotherContainer& container2, const Compare& compare = {})
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container1))>>;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<CArgs...>, OverrideContainer<ElementType>>;
+
+    assert(std::is_sorted(std::cbegin(container1), std::cend(container1), compare));
+    assert(std::is_sorted(std::cbegin(container2), std::cend(container2), compare));
+
+    ResultType result;
+    std::set_difference(std::cbegin(container1), std::cend(container1),
+                        std::cbegin(container2), std::cend(container2),
+                        Internal::getInserter(result), compare);
+
+    return result;
+}
+
+template<typename Compare = std::less<>,
+         typename AddedHandler, typename RemovedHandler,
+         typename Container1, typename Container2>
+void difference_sorted_detailed(const Container1& container1, const Container2& container2,
+                                const AddedHandler& addedHandler, const RemovedHandler& removedHandler,
+                                const Compare& compare = {})
+{
+    assert(std::is_sorted(std::cbegin(container1), std::cend(container1), compare));
+    assert(std::is_sorted(std::cbegin(container2), std::cend(container2), compare));
+
+    using DiffType = typename Container1::difference_type;
+
+    auto it1 = std::cbegin(container1);
+    auto end1 = std::cend(container1);
+    auto it2 = std::cbegin(container2);
+    auto end2 = std::cend(container2);
+
+    DiffType index1 = 0;
+    DiffType offset = 0;
+
+    while (it1 != end1 || it2 != end2) {
+        if (it1 == end1) {
+            // All remaining elements in container2 are additions
+            if (it2 != end2) {
+                DiffType insertionIndex = index1 + offset;
+                auto itemsStart = it2;
+                DiffType count = std::distance(it2, end2);
+                addedHandler(itemsStart, end2, insertionIndex);
+                offset += count;
+            }
+            break;
+        }
+
+        if (it2 == end2) {
+            // All remaining elements in container1 are removals
+            if (it1 != end1) {
+                DiffType minIndex = index1 + offset;
+                DiffType count = std::distance(it1, end1);
+                DiffType maxIndex = minIndex + count - 1;
+                removedHandler(minIndex, maxIndex);
+                offset -= count;
+            }
+            break;
+        }
+
+        if (!compare(*it1, *it2) && !compare(*it2, *it1)) {
+            // Elements are equal
+            ++it1;
+            ++it2;
+            ++index1;
+        } else if (compare(*it1, *it2)) {
+            // Element is in container1 but not in container2 (removal)
+            DiffType minIndex = index1 + offset;
+            DiffType removalCount = 0;
+
+            while (it1 != end1 && (it2 == end2 || compare(*it1, *it2))) {
+                ++it1;
+                ++index1;
+                ++removalCount;
+            }
+
+            DiffType maxIndex = minIndex + removalCount - 1;
+            removedHandler(minIndex, maxIndex);
+            offset -= removalCount;
+        } else {
+            // Element is in container2 but not in container1 (addition)
+            DiffType insertionIndex = index1 + offset;
+            auto itemsStart = it2;
+            DiffType additionCount = 0;
+
+            while (it2 != end2 && (it1 == end1 || compare(*it2, *it1))) {
+                ++it2;
+                ++additionCount;
+            }
+
+            addedHandler(itemsStart, it2, insertionIndex);
+            offset += additionCount;
         }
     }
 }

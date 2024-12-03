@@ -441,3 +441,155 @@ TEST(utils_cpp, ContainerUtilsTest_erase_one)
         ASSERT_EQ(container, (std::vector<int>{9}));
     }
 }
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted)
+{
+    std::vector<int> a {1, 2, 3, 4   };
+    std::vector<int> b {   2, 3, 4, 5};
+    std::set<int> c    {   5, 3, 2, 4};
+
+    const auto addedToB = utils_cpp::difference_sorted(b, a);
+    const auto removedFromB = utils_cpp::difference_sorted(a, b);
+    ASSERT_EQ(addedToB, (std::vector<int>{5}));
+    ASSERT_EQ(removedFromB, (std::vector<int>{1}));
+
+    const auto addedToC = utils_cpp::difference_sorted(c, a); // set
+    const auto removedFromC = utils_cpp::difference_sorted(a, c); // vector
+    ASSERT_EQ(addedToC, (std::set<int>{5}));
+    ASSERT_EQ(removedFromC, (std::vector<int>{1}));
+
+    const auto addedToC2 = utils_cpp::difference_sorted<std::vector>(c, a);
+    const auto removedFromC2 = utils_cpp::difference_sorted(a, c);
+    ASSERT_EQ(addedToC2, (std::vector<int>{5}));
+    ASSERT_EQ(removedFromC2, (std::vector<int>{1}));
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_custom)
+{
+    struct MyStruct {
+        int value {};
+
+        MyStruct() = default;
+        MyStruct(int value) : value(value) {}
+        MyStruct(const MyStruct&) = default;
+
+        bool operator==(const MyStruct& rhs) const { return value == rhs.value; }
+        static bool cmp(const MyStruct& lhs, const MyStruct& rhs) { return lhs.value < rhs.value; }
+    };
+
+    struct Cmp {
+        bool operator()(const MyStruct& lhs, const MyStruct& rhs) const { return lhs.value < rhs.value; }
+    };
+
+
+    std::vector<MyStruct> a   {1, 2, 3, 4   };
+    std::vector<MyStruct> b   {   2, 3, 4, 5};
+    std::set<MyStruct, Cmp> c {   5, 3, 2, 4};
+
+    const auto addedToB = utils_cpp::difference_sorted(b, a, MyStruct::cmp);
+    const auto removedFromB = utils_cpp::difference_sorted(a, b, MyStruct::cmp);
+    ASSERT_EQ(addedToB, (std::vector<MyStruct>{5}));
+    ASSERT_EQ(removedFromB, (std::vector<MyStruct>{1}));
+
+    const auto addedToC = utils_cpp::difference_sorted(c, a, MyStruct::cmp); // set
+    const auto removedFromC = utils_cpp::difference_sorted(a, c, MyStruct::cmp); // vector
+    ASSERT_EQ(addedToC, (std::set<MyStruct, Cmp>{5}));
+    ASSERT_EQ(removedFromC, (std::vector<MyStruct>{1}));
+
+    const auto addedToC2 = utils_cpp::difference_sorted<std::vector>(c, a, MyStruct::cmp);
+    const auto removedFromC2 = utils_cpp::difference_sorted(a, c, MyStruct::cmp);
+    ASSERT_EQ(addedToC2, (std::vector<MyStruct>{5}));
+    ASSERT_EQ(removedFromC2, (std::vector<MyStruct>{1}));
+}
+
+// ---- Test detailed_difference ----
+namespace {
+
+struct TestData
+{
+    std::vector<int> a;
+    std::vector<int> b;
+    size_t expectedAddCount {};
+    size_t expectedRemoveCount {};
+};
+
+} // namespace
+
+class ContainerUtils_detailed_difference : public ::testing::TestWithParam<TestData> {
+protected:
+    void SetUp() override { }
+    void TearDown() override { }
+};
+
+TEST_P(ContainerUtils_detailed_difference, Test) {
+    const auto& params = GetParam();
+    const auto& a = params.a;
+    const auto& b = params.b;
+    std::vector<int> c = a;
+    size_t addCount {};
+    size_t removeCount {};
+
+    auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+        c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        addCount++;
+    };
+
+    auto remover = [&](auto minIndex, int64_t maxIndex){
+        static_assert(std::is_same_v<decltype(minIndex), std::vector<int>::difference_type>);
+        c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        removeCount++;
+    };
+
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover);
+    EXPECT_EQ(c, b);
+    EXPECT_EQ(addCount, params.expectedAddCount);
+    EXPECT_EQ(removeCount, params.expectedRemoveCount);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ContainerUtils_detailed_difference,
+    ContainerUtils_detailed_difference,
+    ::testing::Values(
+        TestData{{},                          {},                          0, 0}, // No changes
+        TestData{{1},                         {1},                         0, 0},
+        TestData{{1, 2},                      {1, 2},                      0, 0},
+        TestData{{1, 2, 3},                   {1, 2, 3},                   0, 0},
+        TestData{{},                          {1},                         1, 0}, // Insertions
+        TestData{{1},                         {1, 2},                      1, 0},
+        TestData{{1, 2},                      {1, 2, 3},                   1, 0},
+        TestData{{1, 2},                      {1, 2, 3, 4},                1, 0},
+        TestData{{},                          {1, 2},                      1, 0},
+        TestData{{},                          {1, 2, 5},                   1, 0},
+        TestData{{1},                         {},                          0, 1}, // Removals
+        TestData{{1, 2},                      {1},                         0, 1},
+        TestData{{1, 2, 3},                   {1, 2},                      0, 1},
+        TestData{{1, 2, 3, 4},                {1, 2},                      0, 1},
+        TestData{{1, 2},                      {},                          0, 1},
+        TestData{{1, 2, 5},                   {},                          0, 1},
+        TestData{{1},                         {0, 1, 2},                   2, 0}, // Several insertions
+        TestData{{1, 3},                      {0, 1, 2, 3},                2, 0},
+        TestData{{1, 3},                      {1, 2, 3, 4},                2, 0},
+        TestData{{1, 3, 5, 7},                {0, 1, 2, 3, 4, 5, 6, 7, 8}, 5, 0},
+        TestData{{1, 3, 7},                   {0, 1, 2, 3, 4, 5, 6, 7, 8}, 4, 0},
+        TestData{{0, 1, 2},                   {1},                         0, 2}, // Several removals
+        TestData{{0, 1, 2, 3},                {1, 3},                      0, 2},
+        TestData{{1, 2, 3, 4},                {1, 3},                      0, 2},
+        TestData{{0, 1, 2, 3, 4, 5, 6, 7, 8}, {1, 3, 5, 7},                0, 5},
+        TestData{{0, 1, 2, 3, 4, 5, 6, 7, 8}, {1, 3, 7},                   0, 4},
+        TestData{{1},                         {10},                        1, 1}, // One insertion and one removal
+        TestData{{1, 2},                      {1, 10},                     1, 1},
+        TestData{{1, 3},                      {0, 3},                      1, 1},
+        TestData{{1, 3},                      {2, 3},                      1, 1},
+        TestData{{1, 3, 5},                   {1, 3, 9},                   1, 1},
+        TestData{{1, 3, 5},                   {1, 2, 5},                   1, 1},
+        TestData{{1, 3, 5},                   {1, 4, 5},                   1, 1},
+        TestData{{1, 3, 5},                   {0, 3, 5},                   1, 1},
+        TestData{{1, 3, 5, 7},                {1, 3, 10},                  1, 1},
+        TestData{{1, 3, 5, 7, 9},             {1, 3, 10},                  1, 1},
+        TestData{{1, 2, 3},                   {0, 2, 3, 4},                2, 1}, // Several insertions and removals
+        TestData{{1, 2, 3, 4, 5},             {6, 7, 8, 9, 10},            1, 1},
+        TestData{{1, 3, 5, 7, 9},             {2, 4, 6, 8, 10},            5, 5}
+    )
+);
+
+// ---- ----
