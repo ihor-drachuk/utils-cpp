@@ -6,7 +6,7 @@
 
 #pragma once
 #include <functional>
-#include <type_traits>
+#include <utility>
 
 namespace utils_cpp_internal {
 
