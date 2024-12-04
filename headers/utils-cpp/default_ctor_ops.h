@@ -30,3 +30,7 @@
 #define DEFAULT_COPY_MOVE(classname) \
    DEFAULT_COPY(classname);          \
    DEFAULT_MOVE(classname)
+
+#define DEFAULT_OPS_EQ_NEQ(classname) \
+   bool operator==(const classname &rhs) const = default; \
+   bool operator!=(const classname &rhs) const = default
