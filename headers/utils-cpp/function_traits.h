@@ -32,4 +32,12 @@ struct function_traits_func<std::function<R(Args...)>>
 } // namespace utils_cpp_internal
 
 template<typename T>
-struct function_traits : public utils_cpp_internal::function_traits_func< decltype(std::function(std::declval<T>())) > {};
+struct function_traits : public utils_cpp_internal::function_traits_func<decltype(std::function(std::declval<T>()))> {};
+
+template<auto F>
+struct Functor {
+    template<typename... Args>
+    auto operator()(Args&&... args) const {
+        return F(std::forward<Args>(args)...);
+    }
+};
