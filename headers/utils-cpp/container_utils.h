@@ -1093,7 +1093,7 @@ const auto& random_weighted_item(const Container& container, const WeightPredica
     }();
 
     std::vector<uint64_t> cumulativeWeights;
-    cumulativeWeights.reserve(container.size());
+    cumulativeWeights.reserve(static_cast<size_t>(container.size()));
 
     uint64_t sum {};
     for (const auto& x : container) {
@@ -1105,7 +1105,7 @@ const auto& random_weighted_item(const Container& container, const WeightPredica
 
     const auto randomWeight = Internal::random<uint64_t>(sum);
     const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
-    const auto index = Internal::distance(cumulativeWeights.begin(), it);
+    const auto index = std::distance(cumulativeWeights.begin(), it);
     return container[index];
 }
 
@@ -1132,7 +1132,7 @@ auto random_weighted_items(const Container<CArgs...>& container, size_t count, c
 
     // Create cumulative weights
     std::vector<uint64_t> cumulativeWeights;
-    cumulativeWeights.reserve(container.size());
+    cumulativeWeights.reserve(static_cast<size_t>(container.size()));
 
     uint64_t sum {};
     for (const auto& x : container) {
@@ -1152,7 +1152,7 @@ auto random_weighted_items(const Container<CArgs...>& container, size_t count, c
     while (count) {
         const auto randomWeight = Internal::random<uint64_t>(sum);
         const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
-        const auto index = Internal::distance(cumulativeWeights.begin(), it);
+        const auto index = std::distance(cumulativeWeights.begin(), it);
         *inserter++ = container[index];
         --count;
     }
@@ -1183,7 +1183,7 @@ auto random_weighted_items_unique(const Container<CArgs...>& container, size_t c
 
     // Create cumulative weights
     std::vector<uint64_t> cumulativeWeights;
-    cumulativeWeights.reserve(container.size());
+    cumulativeWeights.reserve(static_cast<size_t>(container.size()));
 
     uint64_t sum {};
     for (const auto& x : container) {
@@ -1201,11 +1201,13 @@ auto random_weighted_items_unique(const Container<CArgs...>& container, size_t c
     Internal::tryReserve(result, count);
     auto inserter = Internal::getInserter(result);
 
-    std::set<size_t> selectedIndexes; // Track selected indexes to ensure uniqueness
+    using IndexType = decltype(std::distance(cumulativeWeights.begin(), cumulativeWeights.end()));
+
+    std::set<IndexType> selectedIndexes; // Track selected indexes to ensure uniqueness
     while (result.size() < count) {
         const auto randomWeight = Internal::random<uint64_t>(sum);
         const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
-        const auto index = Internal::distance(cumulativeWeights.begin(), it);
+        const auto index = std::distance(cumulativeWeights.begin(), it);
 
         if (selectedIndexes.insert(index).second) { // Add if not already selected
             *inserter++ = container[index];
