@@ -13,6 +13,10 @@
 
 /*  Overview
  *
+ *  --- TOOLS ---
+ *  - containerize (begin, end) - creates container-like object from iterators to use in other functions.
+ *
+ *
  *  --- SEARCH ---
  *
  *  There are functions, which find value in container. By default copy of value is stored internally.
@@ -315,7 +319,24 @@ inline bool match(size_t index, const T& item, const PredicateOrValue& predicate
         return item == predicateOrValue;
 }
 
+template<typename Iterator>
+class Containerizer
+{
+public:
+    Containerizer(Iterator begin, Iterator end): m_begin(begin), m_end(end) {}
+    Containerizer(const Containerizer&) = default;
+
+    Iterator begin() const { return m_begin; }
+    Iterator end() const { return m_end; }
+
+private:
+    Iterator m_begin {};
+    Iterator m_end {};
+};
+
 } // namespace Internal
+
+// SearchResult
 
 template<typename T,
          bool needIndex_,
@@ -333,6 +354,13 @@ public:
     template<bool needIndex = needIndex_, typename std::enable_if_t<!needIndex>* = nullptr>
     SearchResult(const T& data): Internal::PartOperators<T, UT, rw, needIndex_>(data) {}
 };
+
+// containerize
+template<typename Iterator>
+auto containerize(Iterator begin, Iterator end)
+{
+    return Internal::Containerizer(begin, end);
+}
 
 // Regular find functions (copy stored)
 
