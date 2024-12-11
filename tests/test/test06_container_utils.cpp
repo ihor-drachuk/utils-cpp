@@ -12,6 +12,7 @@
 #include <utils-cpp/container_utils.h>
 #include <utils-cpp/comparison_traits.h>
 #include <utils-cpp/checkmethod.h>
+#include <utils-cpp/function_traits.h>
 
 CREATE_CHECK_METHOD(index)
 
@@ -593,3 +594,128 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // ---- ----
+
+TEST(utils_cpp, ContainerUtilsTest_internal_random)
+{
+    std::vector<int> randomNumbers1;
+    std::vector<int> randomNumbers2;
+
+    for (int i = 0; i < 100; ++i)
+        randomNumbers1.push_back(utils_cpp::Internal::random(10));
+
+    for (int i = 0; i < 100; ++i)
+        randomNumbers2.push_back(utils_cpp::Internal::random(-10, 10));
+
+    const auto first1 = randomNumbers1.front();
+    const auto first2 = randomNumbers2.front();
+    const auto hasAnother1 = utils_cpp::contains_if(randomNumbers1, [first1](const auto x){ return x != first1; });
+    const auto hasAnother2 = utils_cpp::contains_if(randomNumbers2, [first2](const auto x){ return x != first2; });
+    EXPECT_EQ(hasAnother1, true);
+    EXPECT_EQ(hasAnother2, true);
+
+    const auto hasNegative = utils_cpp::contains_if(randomNumbers2, [](const auto x){ return x < 0; });
+    EXPECT_EQ(hasNegative, true);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_generate)
+{
+    const auto vec = utils_cpp::generate<std::vector>(5, [i = 0]() mutable { return ++i; });
+    ASSERT_EQ(vec, (std::vector<int>{1, 2, 3, 4, 5}));
+
+    const auto vec2 = utils_cpp::generate_rnd<std::vector>(5, [](size_t rnd) { return rnd; });
+    const auto first = vec2.front();
+    const auto hasAnother = utils_cpp::contains_if(vec2, [first](const auto x){ return x != first; });
+    EXPECT_EQ(hasAnother, true);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_items)
+{
+    constexpr size_t Count = 500;
+    const auto vec = utils_cpp::generate<std::vector>(Count, [i = 0]() mutable { return ++i; });
+    const auto selection1 = utils_cpp::generate<std::vector>(Count, [&vec]() { return utils_cpp::random_item(vec); });
+    const auto selection2 = utils_cpp::random_items(vec, Count);
+    ASSERT_EQ(vec.size(), Count);
+    ASSERT_EQ(selection1.size(), Count);
+    ASSERT_EQ(selection2.size(), Count);
+
+    EXPECT_NE(vec, selection1);
+    EXPECT_NE(vec, selection2);
+    EXPECT_NE(selection1, selection2);
+
+    std::set<int> setSelection1 (selection1.cbegin(), selection1.cend());
+    std::set<int> setSelection2 (selection2.cbegin(), selection2.cend());
+    EXPECT_LT(setSelection1.size(), selection1.size());
+    EXPECT_LT(setSelection2.size(), selection2.size());
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_items_unique)
+{
+    constexpr size_t Count = 500;
+    const auto vec = utils_cpp::generate<std::vector>(Count, [i = 0]() mutable { return ++i; });
+    const auto selection = utils_cpp::random_items_unique(vec, Count);
+    ASSERT_EQ(vec.size(), Count);
+    ASSERT_EQ(selection.size(), Count);
+
+    EXPECT_NE(vec, selection);
+
+    std::set<int> setSelection (selection.cbegin(), selection.cend());
+    EXPECT_EQ(setSelection.size(), selection.size());
+}
+
+namespace {
+struct Int {
+    int value {};
+
+    bool operator==(const Int& rhs) const { return rhs.value == value; }
+    bool operator!=(const Int& rhs) const { return rhs.value != value; }
+
+    static int weight(const Int& x)  { return x.value; }
+    using Weight = Functor<weight>;
+};
+} // namespace
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item)
+{
+    // Simple type
+    constexpr size_t Count = 500;
+    const std::vector<int> items {50, 1000, 1};
+    const auto selection = utils_cpp::generate<std::vector>(Count, [&items](){ return utils_cpp::random_weighted_item(items); });
+    const auto cnt1000 = std::count(selection.cbegin(), selection.cend(), 1000);
+    const auto cnt50 = std::count(selection.cbegin(), selection.cend(), 50);
+    EXPECT_GE(cnt1000, 400);
+    EXPECT_GE(cnt50, 1);
+    EXPECT_LE(cnt50, 50);
+
+    // Custom type
+    const std::vector<Int> itemsB {{50}, {1000}, {1}};
+    const auto selectionB = utils_cpp::generate<std::vector>(Count, [&itemsB](){ return utils_cpp::random_weighted_item<Int::Weight>(itemsB); });
+    const auto cnt1000b = std::count(selectionB.cbegin(), selectionB.cend(), Int{1000});
+    const auto cnt50b = std::count(selectionB.cbegin(), selectionB.cend(), Int{50});
+    EXPECT_GE(cnt1000b, 400);
+    EXPECT_GE(cnt50b, 1);
+    EXPECT_LE(cnt50b, 50);
+
+    // Another weight functor
+    utils_cpp::random_weighted_item(itemsB, [](const auto& x){ return x.value; });
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_items)
+{
+    const std::vector<int> items {1, 2, 3, 4, 5, 6, 7, 8, 9, 1000};
+    std::vector<int> selection = utils_cpp::random_weighted_items(items, 10);
+    const auto cnt1000 = std::count(selection.cbegin(), selection.cend(), 1000);
+    EXPECT_GE(cnt1000, 7);
+
+    const std::set<int> setSelection (selection.cbegin(), selection.cend());
+    EXPECT_LT(setSelection.size(), selection.size());
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_unique)
+{
+    const std::vector<int> items {1, 2, 3, 4, 5, 6, 7, 8, 9, 1000};
+    std::vector<int> selection = utils_cpp::random_weighted_items_unique(items, 10);
+    EXPECT_TRUE(selection[0] == 1000 || selection[1] == 1000);
+
+    const std::set<int> setSelection (selection.cbegin(), selection.cend());
+    EXPECT_EQ(setSelection.size(), selection.size());
+}

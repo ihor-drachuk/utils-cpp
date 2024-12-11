@@ -10,6 +10,12 @@
 #include <utility>
 #include <cassert>
 
+// For random stuff
+#include <random>
+#include <limits>
+#include <vector>
+#include <set>
+
 
 /*  Overview
  *
@@ -87,6 +93,22 @@
  *
  *     Behavior: this function calls `addedHandler` and `removedHandler` so container1 could be "upgraded"
  *     to container2 by provided data. First `addedHandler`s are called, then `removedHandler`s.
+ *
+ *
+ *   --- SELECTION ---
+ *   - random_item                   (container)
+ *   - random_items       <Container>(container, count)
+ *   - random_items_unique<Container>(container, count)
+ *
+ *   - random_weighted_item                   (container,        weightPredicate)
+ *   - random_weighted_items       <Container>(container, count, weightPredicate)
+ *   - random_weighted_items_unique<Container>(container, count, weightPredicate)
+ *
+ *
+ *   --- GENERATION ---
+ *   - generate    <Container>(count, generator)
+ *   - generate_rnd<Container>(count, generator) // Random 'size_t' is passed to 'generator'
+ *   - generate_rnd<Container>(count, min, max, generator = {})
 */
 
 template <class Key, class T> class QMap;
@@ -328,10 +350,45 @@ public:
 
     Iterator begin() const { return m_begin; }
     Iterator end() const { return m_end; }
+    size_t size() const { return static_cast<size_t>(distance(m_begin, m_end)); }
 
 private:
     Iterator m_begin {};
     Iterator m_end {};
+};
+
+template<typename T>
+T random(T min, T max)
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<T> dis(min, max);
+    return dis(gen);
+}
+
+template<typename T>
+T random(T max)
+{
+    return random(T(), max);
+}
+
+template<typename T>
+class DefaultGenerator
+{
+public:
+    T operator()(const T& x) const { return x; }
+};
+
+template<typename NewArg0, typename T>
+struct ReplaceArg0
+{
+    using Type = T;
+};
+
+template<typename NewArg0, template<typename...> class C, typename... Args>
+struct ReplaceArg0<NewArg0, C<Args...>>
+{
+    using Type = C<NewArg0>;
 };
 
 } // namespace Internal
@@ -708,6 +765,8 @@ auto copy_if_transform(const Container& container, const Predicate& predicate, c
 template<typename Container, typename PredicateOrValue>
 void erase_all_vec(Container& container, const PredicateOrValue& predicateOrValue)
 {
+    static_assert(!std::is_const_v<Container>);
+
     size_t index = 0;
     auto it = std::begin(container);
     const auto end = std::end(container);
@@ -738,6 +797,8 @@ void erase_all_vec(Container& container, const PredicateOrValue& predicateOrValu
 template<typename Container, typename PredicateOrValue>
 void erase_all(Container& container, const PredicateOrValue& predicateOrValue)
 {
+    static_assert(!std::is_const_v<Container>);
+
     size_t index = 0;
     auto it = std::begin(container);
 
@@ -756,6 +817,8 @@ void erase_all(Container& container, const PredicateOrValue& predicateOrValue)
 template<typename Container, typename PredicateOrValue>
 void erase_one(Container& container, const PredicateOrValue& predicateOrValue)
 {
+    static_assert(!std::is_const_v<Container>);
+
     size_t index = 0;
     auto it = std::begin(container);
 
@@ -871,6 +934,285 @@ void difference_sorted_detailed(const Container1& container1, const Container2& 
             offset += additionCount;
         }
     }
+}
+
+template<template<typename...> class Container,
+         typename Generator>
+auto generate(size_t count, Generator generator)
+{
+    using ElementType = std::decay_t<decltype(generator())>;
+    using ResultType = Container<ElementType>;
+
+    ResultType result;
+    Internal::tryReserve(result, count);
+    auto inserter = Internal::getInserter(result);
+
+    while (count) {
+        *inserter++ = generator();
+        --count;
+    }
+
+    return result;
+}
+
+
+template<template<typename...> class Container,
+         typename Generator>
+auto generate_rnd(size_t count, Generator generator)
+{
+    using ElementType = std::decay_t<decltype(generator(size_t()))>;
+    using ResultType = Container<ElementType>;
+
+    if (!count)
+        return ResultType();
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<size_t> dis(0, std::numeric_limits<size_t>::max());
+
+    ResultType result;
+    Internal::tryReserve(result, count);
+    auto inserter = Internal::getInserter(result);
+
+    while (count) {
+        *inserter++ = generator(dis(gen));
+        --count;
+    }
+
+    return result;
+}
+
+
+template<typename Container,
+         typename T,
+         typename Generator = Internal::DefaultGenerator<T>>
+auto generate_rnd(size_t count, T min, T max, Generator generator = {})
+{
+    using ElementType = std::decay_t<decltype(generator(size_t()))>;
+    using ResultType = typename Internal::ReplaceArg0<ElementType, Container>::Type;
+
+    if (!count)
+        return ResultType();
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<T> dis(min, max);
+
+    ResultType result;
+    Internal::tryReserve(result, count);
+    auto inserter = Internal::getInserter(result);
+
+    while (count) {
+        *inserter++ = generator(dis(gen));
+        --count;
+    }
+
+    return result;
+}
+
+
+template<typename Container>
+const auto& random_item(const Container& container)
+{
+    assert(!container.empty());
+    return container[Internal::random(container.size() - 1)];
+}
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         template<typename...> class Container,
+         typename... CArgs>
+auto random_items(const Container<CArgs...>& container, size_t count)
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<CArgs...>, OverrideContainer<ElementType>>;
+
+    if (!count)
+        return ResultType();
+
+    assert(container.size() > 0);
+
+    ResultType result;
+    Internal::tryReserve(result, count);
+    auto inserter = Internal::getInserter(result);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<size_t> dis(0, container.size() - 1);
+
+    while (count) {
+        *inserter++ = container[dis(gen)];
+        --count;
+    }
+
+    return result;
+}
+
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         template<typename...> class Container,
+         typename... CArgs>
+auto random_items_unique(const Container<CArgs...>& container, size_t count)
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<CArgs...>, OverrideContainer<ElementType>>;
+
+    if (!count)
+        return ResultType();
+
+    assert(container.size() >= count);
+
+    ResultType result;
+    Internal::tryReserve(result, count);
+    auto inserter = Internal::getInserter(result);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    auto indexes = generate<std::vector>(container.size(), [i = size_t()]() mutable { return i++; });
+    std::shuffle(indexes.begin(), indexes.end(), gen);
+
+    while (count) {
+        *inserter++ = container[indexes[--count]];
+    }
+
+    return result;
+}
+
+
+template<typename WeightPredicate = std::nullptr_t,
+         typename Container>
+const auto& random_weighted_item(const Container& container, const WeightPredicate& weightPredicate = {})
+{
+    assert(!container.empty());
+
+    const auto pred = [&](){
+        if constexpr (std::is_same_v<WeightPredicate, std::nullptr_t>)
+            return [](const auto& x) { return x; };
+        else
+            return weightPredicate;
+    }();
+
+    std::vector<uint64_t> cumulativeWeights;
+    cumulativeWeights.reserve(container.size());
+
+    uint64_t sum {};
+    for (const auto& x : container) {
+        const auto weight = pred(x);
+        assert(weight >= 0);
+        sum += static_cast<uint64_t>(weight);
+        cumulativeWeights.push_back(sum);
+    }
+
+    const auto randomWeight = Internal::random<uint64_t>(sum);
+    const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
+    const auto index = Internal::distance(cumulativeWeights.begin(), it);
+    return container[index];
+}
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         typename WeightPredicate = std::nullptr_t,
+         template<typename...> class Container,
+         typename... CArgs>
+auto random_weighted_items(const Container<CArgs...>& container, size_t count, const WeightPredicate& weightPredicate = {})
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<CArgs...>, OverrideContainer<ElementType>>;
+
+    if (!count)
+        return ResultType();
+
+    assert(container.size() >= count);
+
+    const auto pred = [&](){
+        if constexpr (std::is_same_v<WeightPredicate, std::nullptr_t>)
+            return [](const auto& x) { return x; };
+        else
+            return weightPredicate;
+    }();
+
+    // Create cumulative weights
+    std::vector<uint64_t> cumulativeWeights;
+    cumulativeWeights.reserve(container.size());
+
+    uint64_t sum {};
+    for (const auto& x : container) {
+        const auto weight = pred(x);
+        assert(weight >= 0);
+        sum += static_cast<uint64_t>(weight);
+        cumulativeWeights.push_back(sum);
+    }
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    ResultType result;
+    Internal::tryReserve(result, count);
+    auto inserter = Internal::getInserter(result);
+
+    while (count) {
+        const auto randomWeight = Internal::random<uint64_t>(sum);
+        const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
+        const auto index = Internal::distance(cumulativeWeights.begin(), it);
+        *inserter++ = container[index];
+        --count;
+    }
+
+    return result;
+}
+
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         typename WeightPredicate = std::nullptr_t,
+         template<typename...> class Container,
+         typename... CArgs>
+auto random_weighted_items_unique(const Container<CArgs...>& container, size_t count,
+                                  const WeightPredicate& weightPredicate = std::nullptr_t()) {
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<CArgs...>, OverrideContainer<ElementType>>;
+
+    if (!count)
+        return ResultType();
+
+    assert(container.size() >= count);
+
+    const auto pred = [&](){
+        if constexpr (std::is_same_v<WeightPredicate, std::nullptr_t>)
+            return [](const auto& x) { return x; };
+        else
+            return weightPredicate;
+    }();
+
+    // Create cumulative weights
+    std::vector<uint64_t> cumulativeWeights;
+    cumulativeWeights.reserve(container.size());
+
+    uint64_t sum {};
+    for (const auto& x : container) {
+        const auto weight = pred(x);
+        assert(weight >= 0);
+        sum += static_cast<uint64_t>(weight);
+        cumulativeWeights.push_back(sum);
+    }
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Select unique items
+    ResultType result;
+    Internal::tryReserve(result, count);
+    auto inserter = Internal::getInserter(result);
+
+    std::set<size_t> selectedIndexes; // Track selected indexes to ensure uniqueness
+    while (result.size() < count) {
+        const auto randomWeight = Internal::random<uint64_t>(sum);
+        const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
+        const auto index = Internal::distance(cumulativeWeights.begin(), it);
+
+        if (selectedIndexes.insert(index).second) { // Add if not already selected
+            *inserter++ = container[index];
+        }
+    }
+
+    return result;
 }
 
 } // namespace utils_cpp
