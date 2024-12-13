@@ -719,3 +719,23 @@ TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_unique)
     const std::set<int> setSelection (selection.cbegin(), selection.cend());
     EXPECT_EQ(setSelection.size(), selection.size());
 }
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_items_coverage)
+{
+    constexpr size_t Count = 30;
+    const std::vector<int> items {50, 51, 52};
+    const auto selection1 = utils_cpp::generate<std::vector>(Count, [&items](){ return utils_cpp::random_weighted_item(items); });
+    const auto selection2 = utils_cpp::random_weighted_items(items, Count);
+    const auto selection3 = utils_cpp::random_weighted_items_unique(items, 3);
+    EXPECT_TRUE(utils_cpp::contains(selection1, 50));
+    EXPECT_TRUE(utils_cpp::contains(selection1, 51));
+    EXPECT_TRUE(utils_cpp::contains(selection1, 52));
+
+    EXPECT_TRUE(utils_cpp::contains(selection2, 50));
+    EXPECT_TRUE(utils_cpp::contains(selection2, 51));
+    EXPECT_TRUE(utils_cpp::contains(selection2, 52));
+
+    EXPECT_TRUE(utils_cpp::contains(selection3, 50));
+    EXPECT_TRUE(utils_cpp::contains(selection3, 51));
+    EXPECT_TRUE(utils_cpp::contains(selection3, 52));
+}
