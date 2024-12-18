@@ -20,6 +20,7 @@
 /*  Overview
  *
  *  --- TOOLS ---
+ *
  *  - containerize (begin, end) - creates container-like object from iterators to use in other functions.
  *
  *
@@ -80,22 +81,34 @@
  *
  *
  *   --- DIFFERENCE ---
- *   - difference_sorted(container1, container2)
- *     difference_sorted(container1, container2, compare)
- *     Returns: container1 - container2. Operates on sorted containers only (e.g.: std::set, sorted std::vector).
  *
- *   - difference_sorted_detailed(container1, container2, addedHandler, removedHandler)
- *     difference_sorted_detailed(container1, container2, addedHandler, removedHandler, compare)
+ *   - difference_sorted(container1, container2, compare = {})
  *
- *        AddedHandler:   void (auto srcItBegin, auto srcItEnd, int64_t insertionIndex)
- *        RemovedHandler: void (int64_t minIndex, int64_t maxIndex)
- *        (To be more precise, `container1::difference_type` is used instead of `int64_t`)
+ *     Returns `container1 - container2`. Operates on sorted containers only (e.g.: std::set, sorted std::vector).
+ *     Sorting function/functor can be provided via template argument or `compare` parameter.
  *
- *     Behavior: this function calls `addedHandler` and `removedHandler` so container1 could be "upgraded"
- *     to container2 by provided data. First `addedHandler`s are called, then `removedHandler`s.
+ *   - difference_sorted_detailed(container1, container2, addedHandler, removedHandler, compare = {})
+ *
+ *     Calls `addedHandler` and `removedHandler` so `container1` can be "upgraded" to `container2` via
+ *     parameters in handlers. Operates on sorted containers only. Handlers signature:
+ *
+ *     AddedHandler:   void (auto srcItBegin, auto srcItEnd, auto insertionIndex)
+ *     RemovedHandler: void (auto minIndex, auto maxIndex)
+ *
+ *     It's expected from user to copy items from [srcItBegin; srcItEnd) to `container1` at `insertionIndex` position,
+ *     and to remove items from `container1` within [minIndex; maxIndex] range.
+ *
+ *     To be more precise:
+ *         AddedHandler:   void (Container2::iterator         srcItBegin2,
+ *                               Container2::iterator         srcItEnd2,
+ *                               Container2::difference_type  insertionIndex)
+ *
+ *         RemovedHandler: void (Container2::difference_type  minIndex,
+ *                               Container2::difference_type  maxIndex)
  *
  *
  *   --- SELECTION ---
+ *
  *   - random_item                   (container)
  *   - random_items       <Container>(container, count)
  *   - random_items_unique<Container>(container, count)
@@ -106,6 +119,7 @@
  *
  *
  *   --- GENERATION ---
+ *
  *   - generate    <Container>(count, generator)
  *   - generate_rnd<Container>(count, generator) // Random 'size_t' is passed to 'generator'
  *   - generate_rnd<Container>(count, min, max, generator = {})
@@ -871,7 +885,7 @@ void difference_sorted_detailed(const Container1& container1, const Container2& 
     assert(std::is_sorted(std::cbegin(container1), std::cend(container1), compare));
     assert(std::is_sorted(std::cbegin(container2), std::cend(container2), compare));
 
-    using DiffType = typename Container1::difference_type;
+    using DiffType = typename Container2::difference_type;
 
     auto it1 = std::cbegin(container1);
     auto end1 = std::cend(container1);
