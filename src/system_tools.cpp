@@ -14,6 +14,22 @@ namespace utils_cpp {
 
 std::optional<bool> hasAdminRights()
 {
+#if 0 // Alternative solution
+    bool fRet = false;
+    HANDLE hToken = nullptr;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+        TOKEN_ELEVATION Elevation;
+        DWORD cbSize = sizeof(TOKEN_ELEVATION);
+        if (GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize)) {
+            fRet = Elevation.TokenIsElevated;
+        }
+    }
+    if (hToken) {
+        CloseHandle(hToken);
+    }
+    return fRet;
+#endif
+
 #ifdef UTILS_CPP_OS_WINDOWS
     BOOL isAdmin = FALSE;
     PSID adminGroup = nullptr;
