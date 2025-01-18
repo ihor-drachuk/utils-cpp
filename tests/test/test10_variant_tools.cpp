@@ -3,8 +3,10 @@
  * Contact:  ihor-drachuk-libs@pm.me  */
 
 #include <gtest/gtest.h>
-#include <utils-cpp/variant_eq_comparison.h>
+#include <utils-cpp/variant_tools.h>
 #include <string>
+
+using namespace utils_cpp::variant_comparisons;
 
 TEST(utils_cpp, variant_eq)
 {
@@ -18,4 +20,11 @@ TEST(utils_cpp, variant_eq)
     a = 17;
     ASSERT_TRUE(a == 17);
     ASSERT_TRUE(a != b);
+}
+
+TEST(utils_cpp, variant_get_if)
+{
+    std::variant<int, std::string> a = "abc";
+    ASSERT_EQ(*utils_cpp::get_if<std::string>(a), "abc");
+    ASSERT_FALSE(utils_cpp::get_if<int>(a).has_value());
 }

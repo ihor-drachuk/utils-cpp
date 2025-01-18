@@ -4,7 +4,12 @@
 
 #pragma once
 #include <variant>
+#include <optional>
 #include <utils-cpp/tuple_utils.h>
+
+namespace utils_cpp {
+
+namespace variant_comparisons {
 
 template<typename T, typename... Args>
 bool operator==(const std::variant<Args...>& lhs, const T& rhs)
@@ -27,3 +32,16 @@ bool operator!=(const std::variant<Args...>& lhs, const T& rhs) { return !(lhs =
 
 template<typename T, typename... Args>
 bool operator!=(const T& lhs, const std::variant<Args...>& rhs) { return !(lhs == rhs); }
+
+} // namespace variant_comparisons
+
+template<typename T, typename... Args>
+std::optional<T> get_if(const std::variant<Args...>& v)
+{
+    if (std::holds_alternative<T>(v))
+        return std::get<T>(v);
+
+    return std::nullopt;
+}
+
+} // namespace utils_cpp
