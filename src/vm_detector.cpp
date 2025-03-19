@@ -10,7 +10,7 @@
 namespace utils_cpp {
 
 // https://stackoverflow.com/a/66974571/5132939
-std::optional<VM> getectVM()
+std::optional<VM> detectVM()
 {
     constexpr unsigned QueryVendorIdMagic = 0x40000000;
 

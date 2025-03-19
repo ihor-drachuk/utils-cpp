@@ -16,6 +16,6 @@ enum class VM {
     Xen
 };
 
-std::optional<VM> getectVM();
+std::optional<VM> detectVM();
 
 } // namespace utils_cpp
