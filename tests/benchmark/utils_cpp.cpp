@@ -8,6 +8,7 @@
 #include <utils-cpp/data_to_string.h>
 #include <utils-cpp/xor.h>
 #include <utils-cpp/functor_iterator.h>
+#include <utils-cpp/container_utils.h>
 #include "internal/data_10kb.h"
 
 static void benchmark_stub(benchmark::State& state)
@@ -108,6 +109,62 @@ static void benchmark_xor_bufferIt(benchmark::State& state)
 }
 
 BENCHMARK(benchmark_xor_bufferIt);
+
+
+static void benchmark_random_weighted_items_10(benchmark::State& state)
+{
+    constexpr size_t Size = 10;
+    constexpr size_t Count = 1000;
+    const std::vector<int> items = utils_cpp::generate<std::vector>(Size, [cnt = 0]() mutable { return ++cnt; });
+
+    while (state.KeepRunning()) {
+        (void)utils_cpp::random_weighted_items(items, Count);
+    }
+}
+
+BENCHMARK(benchmark_random_weighted_items_10);
+
+
+static void benchmark_random_weighted_items_100(benchmark::State& state)
+{
+    constexpr size_t Size = 100;
+    constexpr size_t Count = 1000;
+    const std::vector<int> items = utils_cpp::generate<std::vector>(Size, [cnt = 0]() mutable { return ++cnt; });
+
+    while (state.KeepRunning()) {
+        (void)utils_cpp::random_weighted_items(items, Count);
+    }
+}
+
+BENCHMARK(benchmark_random_weighted_items_100);
+
+
+static void benchmark_random_weighted_items_1000(benchmark::State& state)
+{
+    constexpr size_t Size = 1000;
+    constexpr size_t Count = 1000;
+    const std::vector<int> items = utils_cpp::generate<std::vector>(Size, [cnt = 0]() mutable { return ++cnt; });
+
+    while (state.KeepRunning()) {
+        (void)utils_cpp::random_weighted_items(items, Count);
+    }
+}
+
+BENCHMARK(benchmark_random_weighted_items_1000);
+
+
+static void benchmark_random_weighted_items_10000(benchmark::State& state)
+{
+    constexpr size_t Size = 10000;
+    constexpr size_t Count = 1000;
+    const std::vector<int> items = utils_cpp::generate<std::vector>(Size, [cnt = 0]() mutable { return ++cnt; });
+
+    while (state.KeepRunning()) {
+        (void)utils_cpp::random_weighted_items(items, Count);
+    }
+}
+
+BENCHMARK(benchmark_random_weighted_items_10000);
 
 
 BENCHMARK_MAIN();

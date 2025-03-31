@@ -17,6 +17,14 @@
 CREATE_CHECK_METHOD(index)
 
 
+namespace {
+
+template<typename T>
+auto toDbl(T x) { return static_cast<double>(x); }
+
+} // namespace
+
+
 TEST(utils_cpp, ContainerUtilsTest_ByCopy)
 {
     std::vector<int> vector {1, 2, 3};
@@ -674,7 +682,7 @@ struct Int {
 };
 } // namespace
 
-TEST(utils_cpp, ContainerUtilsTest_random_weighted_item)
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_types)
 {
     // Simple type
     constexpr size_t Count = 500;
@@ -697,6 +705,79 @@ TEST(utils_cpp, ContainerUtilsTest_random_weighted_item)
 
     // Another weight functor
     utils_cpp::random_weighted_item(itemsB, [](const auto& x){ return x.value; });
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_stats1)
+{
+    constexpr size_t Count = 1000000; // 1M
+    const std::vector<int> items {10, 5, 2, 1};
+
+    { // Small container optimized
+        const auto selection = utils_cpp::random_weighted_items(items, Count, {}, std::numeric_limits<size_t>::max());
+        const auto percent10 = toDbl(std::count(selection.cbegin(), selection.cend(), 10)) * 100.0 / Count;
+        const auto percent5 = toDbl(std::count(selection.cbegin(), selection.cend(), 5)) * 100.0 / Count;
+        const auto percent2 = toDbl(std::count(selection.cbegin(), selection.cend(), 2)) * 100.0 / Count;
+        const auto percent1 = toDbl(std::count(selection.cbegin(), selection.cend(), 1)) * 100.0 / Count;
+        ASSERT_EQ(selection.size(), Count);
+        ASSERT_NEAR(percent1 + percent2 + percent5 + percent10, 100, 0.1);
+
+        std::cout << "Distribution:" << std::endl;
+        std::cout << "10s: " << percent10 << "%" << std::endl;
+        std::cout << "5s: " << percent5 << "%" << std::endl;
+        std::cout << "2s: " << percent2 << "%" << std::endl;
+        std::cout << "1s: " << percent1 << "%" << std::endl;
+
+        EXPECT_NEAR(percent10, 55, 1);
+        EXPECT_NEAR(percent5, 27, 1);
+        EXPECT_NEAR(percent2, 11, 1);
+        EXPECT_NEAR(percent1, 5, 1);
+    }
+
+    { // General implementation
+        const auto selection = utils_cpp::random_weighted_items(items, Count, {}, 0);
+        const auto percent10 = toDbl(std::count(selection.cbegin(), selection.cend(), 10)) * 100.0 / Count;
+        const auto percent5 = toDbl(std::count(selection.cbegin(), selection.cend(), 5)) * 100.0 / Count;
+        const auto percent2 = toDbl(std::count(selection.cbegin(), selection.cend(), 2)) * 100.0 / Count;
+        const auto percent1 = toDbl(std::count(selection.cbegin(), selection.cend(), 1)) * 100.0 / Count;
+        ASSERT_EQ(selection.size(), Count);
+        ASSERT_NEAR(percent1 + percent2 + percent5 + percent10, 100, 0.1);
+
+        std::cout << "Distribution:" << std::endl;
+        std::cout << "10s: " << percent10 << "%" << std::endl;
+        std::cout << "5s: " << percent5 << "%" << std::endl;
+        std::cout << "2s: " << percent2 << "%" << std::endl;
+        std::cout << "1s: " << percent1 << "%" << std::endl;
+
+        EXPECT_NEAR(percent10, 55, 1);
+        EXPECT_NEAR(percent5, 27, 1);
+        EXPECT_NEAR(percent2, 11, 1);
+        EXPECT_NEAR(percent1, 5, 1);
+    }
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_stats2)
+{
+    constexpr size_t Count = 100000; // 100k
+    const std::vector<int> items {10, 5, 2, 1};
+
+    const auto selection = utils_cpp::generate<std::vector>(Count, [&items](){ return utils_cpp::random_weighted_item(items); });
+    const auto percent10 = toDbl(std::count(selection.cbegin(), selection.cend(), 10)) * 100.0 / Count;
+    const auto percent5 = toDbl(std::count(selection.cbegin(), selection.cend(), 5)) * 100.0 / Count;
+    const auto percent2 = toDbl(std::count(selection.cbegin(), selection.cend(), 2)) * 100.0 / Count;
+    const auto percent1 = toDbl(std::count(selection.cbegin(), selection.cend(), 1)) * 100.0 / Count;
+    ASSERT_EQ(selection.size(), Count);
+    ASSERT_NEAR(percent1 + percent2 + percent5 + percent10, 100, 0.1);
+
+    std::cout << "Distribution:" << std::endl;
+    std::cout << "10s: " << percent10 << "%" << std::endl;
+    std::cout << "5s: " << percent5 << "%" << std::endl;
+    std::cout << "2s: " << percent2 << "%" << std::endl;
+    std::cout << "1s: " << percent1 << "%" << std::endl;
+
+    EXPECT_NEAR(percent10, 55, 1.25);
+    EXPECT_NEAR(percent5, 27, 1.25);
+    EXPECT_NEAR(percent2, 11, 1.25);
+    EXPECT_NEAR(percent1, 5, 1.25);
 }
 
 TEST(utils_cpp, ContainerUtilsTest_random_weighted_items)
@@ -738,4 +819,95 @@ TEST(utils_cpp, ContainerUtilsTest_random_weighted_items_coverage)
     EXPECT_TRUE(utils_cpp::contains(selection3, 50));
     EXPECT_TRUE(utils_cpp::contains(selection3, 51));
     EXPECT_TRUE(utils_cpp::contains(selection3, 52));
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_all)
+{
+    std::vector<int> items = {10, 5, 2, 1};
+    size_t count = items.size();
+
+    auto selection = utils_cpp::random_weighted_items_unique(items, count);
+
+    EXPECT_EQ(selection.size(), count);
+
+    std::set<int> selectionSet(selection.begin(), selection.end());
+    std::set<int> itemsSet(items.begin(), items.end());
+    EXPECT_EQ(selectionSet, itemsSet);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_subset)
+{
+    std::vector<int> items = {10, 5, 2, 1};
+    size_t count = 2;
+
+    const int iterations = 100000; // 100k
+    std::map<int, int> frequency;
+
+    for (int i = 0; i < iterations; i++) {
+        auto selection = utils_cpp::random_weighted_items_unique(items, count);
+
+        EXPECT_EQ(selection.size(), count);
+
+        std::set<int> uniqueItems(selection.begin(), selection.end());
+        EXPECT_EQ(uniqueItems.size(), count);
+
+        for (auto value : selection)
+            frequency[value]++;
+    }
+
+    double percent10 = frequency[10] * 100.0 / iterations;
+    double percent5  = frequency[5]  * 100.0 / iterations;
+    double percent2  = frequency[2]  * 100.0 / iterations;
+    double percent1  = frequency[1]  * 100.0 / iterations;
+
+    std::cout << "Frequency distribution for subset selection (m=2):\n";
+    std::cout << "10: " << percent10 << "%" << std::endl;
+    std::cout << "5: "  << percent5  << "%" << std::endl;
+    std::cout << "2: "  << percent2  << "%" << std::endl;
+    std::cout << "1: "  << percent1  << "%" << std::endl;
+
+    EXPECT_NEAR(percent10, 86.42, 2.0);
+    EXPECT_NEAR(percent5,  67.13, 2.0);
+    EXPECT_NEAR(percent2,  30.79, 2.0);
+    EXPECT_NEAR(percent1,  15.66, 2.0);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_single)
+{
+    std::vector<int> items = {10, 5, 2, 1};
+    size_t count = 1;
+
+    const int iterations = 100000; // 100k
+    std::map<int, int> frequency;
+
+    for (int i = 0; i < iterations; i++) {
+        auto selection = utils_cpp::random_weighted_items_unique(items, count);
+
+        EXPECT_EQ(selection.size(), count);
+
+        frequency[selection[0]]++;
+    }
+
+    double percent10 = frequency[10] * 100.0 / iterations;
+    double percent5  = frequency[5]  * 100.0 / iterations;
+    double percent2  = frequency[2]  * 100.0 / iterations;
+    double percent1  = frequency[1]  * 100.0 / iterations;
+
+    std::cout << "Distribution for single item selection:\n";
+    std::cout << "10: " << percent10 << "%" << std::endl;
+    std::cout << "5: "  << percent5  << "%" << std::endl;
+    std::cout << "2: "  << percent2  << "%" << std::endl;
+    std::cout << "1: "  << percent1  << "%" << std::endl;
+
+    EXPECT_NEAR(percent10, 55.88, 2.0);
+    EXPECT_NEAR(percent5,  28.38, 2.0);
+    EXPECT_NEAR(percent2,  10.45, 2.0);
+    EXPECT_NEAR(percent1,   5.29, 2.0);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_random_weighted_item_zero)
+{
+    std::vector<int> items = {10, 5, 2, 1};
+    auto selection = utils_cpp::random_weighted_items_unique(items, 0);
+    EXPECT_TRUE(selection.empty());
 }
