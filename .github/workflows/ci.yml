@@ -218,7 +218,8 @@ jobs:
             -j $(nproc --all) \
             -o report \
             build/compile_commands.json \
-            --analyzers clang-tidy clangsa
+            --analyzers clang-tidy clangsa \
+            --config src/.codechecker.json
           CodeChecker parse ./report --trim-path-prefix "$(pwd)/src" | tee ./codechecker-reports/results.txt || true
           CodeChecker parse ./report --trim-path-prefix "$(pwd)/src" -e html -o ./codechecker-reports/html > /dev/null || true
           CodeChecker parse ./report --trim-path-prefix "$(pwd)/src" > /dev/null && touch ./ccOK || true

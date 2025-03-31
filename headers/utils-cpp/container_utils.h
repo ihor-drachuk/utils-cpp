@@ -3,18 +3,18 @@
  * Contact:  ihor-drachuk-libs@pm.me  */
 
 #pragma once
-#include <optional>
 #include <algorithm>
+#include <cassert>
 #include <iterator>
+#include <numeric>
+#include <optional>
 #include <type_traits>
 #include <utility>
-#include <cassert>
 
 // For random stuff
 #include <random>
 #include <limits>
 #include <vector>
-#include <set>
 
 
 /*  Overview
@@ -1124,8 +1124,6 @@ template<typename WeightPredicate = std::nullptr_t,
          typename Container>
 const auto& random_weighted_item(const Container& container, const WeightPredicate& weightPredicate = {})
 {
-    assert(!container.empty());
-
     const auto pred = [&](){
         if constexpr (std::is_same_v<WeightPredicate, std::nullptr_t>)
             return [](const auto& x) { return x; };
@@ -1133,19 +1131,20 @@ const auto& random_weighted_item(const Container& container, const WeightPredica
             return weightPredicate;
     }();
 
+    assert(!container.empty());
+    assert(std::all_of(container.begin(), container.end(), [&](const auto& x) { return pred(x) > 0; }));
+
     std::vector<uint64_t> cumulativeWeights;
     cumulativeWeights.reserve(static_cast<size_t>(container.size()));
 
     uint64_t sum {};
     for (const auto& x : container) {
-        const auto weight = pred(x);
-        assert(weight >= 0);
-        sum += static_cast<uint64_t>(weight);
+        sum += static_cast<uint64_t>(pred(x));
         cumulativeWeights.push_back(sum);
     }
 
-    const auto randomWeight = Internal::random<uint64_t>(sum);
-    const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
+    const auto randomWeight = Internal::random<uint64_t>(sum - 1);
+    const auto it = std::upper_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
     const auto index = std::distance(cumulativeWeights.begin(), it);
     return Internal::at(container, index);
 }
@@ -1154,13 +1153,13 @@ template<template<typename...> class OverrideContainer = Internal::Empty,
          typename WeightPredicate = std::nullptr_t,
          template<typename...> class Container,
          typename... CArgs>
-auto random_weighted_items(const Container<CArgs...>& container, size_t count, const WeightPredicate& weightPredicate = {})
+auto random_weighted_items(const Container<CArgs...>& container,
+                           size_t count,
+                           const WeightPredicate& weightPredicate = {},
+                           size_t smallContainerThreshold = 100)
 {
     using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
     using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<CArgs...>, OverrideContainer<ElementType>>;
-
-    if (!count)
-        return ResultType();
 
     const auto pred = [&](){
         if constexpr (std::is_same_v<WeightPredicate, std::nullptr_t>)
@@ -1169,17 +1168,10 @@ auto random_weighted_items(const Container<CArgs...>& container, size_t count, c
             return weightPredicate;
     }();
 
-    // Create cumulative weights
-    std::vector<uint64_t> cumulativeWeights;
-    cumulativeWeights.reserve(static_cast<size_t>(container.size()));
+    if (!count)
+        return ResultType();
 
-    uint64_t sum {};
-    for (const auto& x : container) {
-        const auto weight = pred(x);
-        assert(weight >= 0);
-        sum += static_cast<uint64_t>(weight);
-        cumulativeWeights.push_back(sum);
-    }
+    assert(std::all_of(container.begin(), container.end(), [&](const auto& x) { return pred(x) > 0; }));
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -1188,70 +1180,113 @@ auto random_weighted_items(const Container<CArgs...>& container, size_t count, c
     Internal::tryReserve(result, count);
     auto inserter = Internal::getInserter(result);
 
-    while (count) {
-        const auto randomWeight = Internal::random<uint64_t>(sum);
-        const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
-        const auto index = std::distance(cumulativeWeights.begin(), it);
-        *inserter++ = Internal::at(container, index);
-        --count;
-    }
+    if (container.size() < smallContainerThreshold) {
+        const auto wSum = static_cast<size_t>(std::accumulate(container.begin(), container.end(), 0, [&](const auto& sum, const auto& x) { return sum + pred(x); }));
 
-    return result;
+        std::uniform_int_distribution<size_t> dis(0, wSum - 1);
+
+        while (count) {
+            const auto randomWeight = dis(gen);
+
+            uint64_t sum {};
+            for (const auto& x : container) {
+                sum += static_cast<uint64_t>(pred(x));
+                if (sum > randomWeight) {
+                    *inserter++ = x;
+                    break;
+                }
+            }
+
+            --count;
+        }
+
+        return result;
+
+    } else {
+        std::vector<uint64_t> cumulativeWeights;
+        cumulativeWeights.reserve(static_cast<size_t>(container.size()));
+
+        uint64_t sum {};
+        for (const auto& x : container) {
+            sum += static_cast<uint64_t>(pred(x));
+            cumulativeWeights.push_back(sum);
+        }
+
+        std::uniform_int_distribution<size_t> dis(0, sum - 1);
+
+        while (count) {
+            const auto randomWeight = dis(gen);
+            const auto it = std::upper_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
+            const auto index = std::distance(cumulativeWeights.begin(), it);
+            *inserter++ = Internal::at(container, index);
+            --count;
+        }
+
+        return result;
+    }
 }
 
 template<template<typename...> class OverrideContainer = Internal::Empty,
          typename WeightPredicate = std::nullptr_t,
          template<typename...> class Container,
          typename... CArgs>
-auto random_weighted_items_unique(const Container<CArgs...>& container, size_t count,
-                                  const WeightPredicate& weightPredicate = std::nullptr_t()) {
+auto random_weighted_items_unique(const Container<CArgs...>& container,
+                                  size_t count,
+                                  const WeightPredicate& weightPredicate = std::nullptr_t())
+{
     using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
-    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<CArgs...>, OverrideContainer<ElementType>>;
+    using ResultType = std::conditional_t<
+        std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>,
+        Container<CArgs...>,
+        OverrideContainer<ElementType>
+        >;
+    using IteratorDiff = typename Container<CArgs...>::difference_type;
 
-    if (!count)
-        return ResultType();
-
-    assert(static_cast<size_t>(container.size()) >= count);
-
-    const auto pred = [&](){
+    const auto pred = [&]() {
         if constexpr (std::is_same_v<WeightPredicate, std::nullptr_t>)
             return [](const auto& x) { return x; };
         else
             return weightPredicate;
     }();
 
-    // Create cumulative weights
-    std::vector<uint64_t> cumulativeWeights;
-    cumulativeWeights.reserve(static_cast<size_t>(container.size()));
+    using PredType = decltype(pred(std::declval<ElementType>()));
 
-    uint64_t sum {};
-    for (const auto& x : container) {
-        const auto weight = pred(x);
-        assert(weight >= 0);
-        sum += static_cast<uint64_t>(weight);
-        cumulativeWeights.push_back(sum);
-    }
+    if (!count)
+        return ResultType();
+
+    assert(container.size() >= count);
+    assert(std::all_of(container.begin(), container.end(), [&](const auto& x) { return pred(x) > 0; }));
 
     std::random_device rd;
     std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dis(0.0, 1.0);
 
-    // Select unique items
+    // Compute a key for each element using the Efraimidis–Spirakis algorithm:
+    // key = u^(1/weight), where u is a random number in (0, 1].
+    std::vector<std::pair<double, ElementType>> keys;
+    keys.reserve(container.size());
+    for (const auto& x : container) {
+        const auto weight = static_cast<double>(pred(x));
+        double u = dis(gen);
+        if (u < std::numeric_limits<double>::min())
+            u = std::numeric_limits<double>::min();
+        double key = std::pow(u, 1.0 / weight);
+        keys.emplace_back(key, x);
+    }
+
+    // Select elements with the highest keys.
+    // Use std::nth_element for partial sorting to find the top 'count' elements.
+    std::nth_element(keys.begin(), keys.begin() + static_cast<IteratorDiff>(count), keys.end(), std::greater<>());
+
+    // Insert the selected elements into the result container.
     ResultType result;
     Internal::tryReserve(result, count);
     auto inserter = Internal::getInserter(result);
+    for (size_t i = 0; i < count; ++i)
+        *inserter++ = keys[i].second;
 
-    using IndexType = decltype(std::distance(cumulativeWeights.begin(), cumulativeWeights.end()));
-
-    std::set<IndexType> selectedIndexes; // Track selected indexes to ensure uniqueness
-    while (result.size() < count) {
-        const auto randomWeight = Internal::random<uint64_t>(sum);
-        const auto it = std::lower_bound(cumulativeWeights.begin(), cumulativeWeights.end(), randomWeight);
-        const auto index = std::distance(cumulativeWeights.begin(), it);
-
-        if (selectedIndexes.insert(index).second) { // Add if not already selected
-            *inserter++ = Internal::at(container, index);
-        }
-    }
+    // Sort. Actually not necessary, but it's nice to have the result sorted.
+    std::sort(std::begin(result), std::end(result), std::greater<PredType>());
 
     return result;
 }
