@@ -62,10 +62,19 @@ std::optional<Registers> get(Reg32 functionId)
 
 std::optional<RawString> getStringRaw(Reg32 functionId)
 {
-    RawString cpuInfoStr = {};
-    if (get(cpuInfoStr.data(), functionId)) {
-        cpuInfoStr[cpuInfoStr.size() - 1] = '\0';
-        return cpuInfoStr;
+#pragma pack(push, 1)
+    struct Result
+    {
+        Reg32 eax {};
+        RawString str {};
+    };
+    static_assert(sizeof(Result) == sizeof(Registers) + 1);
+#pragma pack(pop)
+
+    Result result = {};
+    if (get(&result, functionId)) {
+        result.str[result.str.size() - 1] = '\0';
+        return result.str;
     } else {
         return {};
     }

@@ -13,7 +13,7 @@ namespace cpuid {
 
 constexpr auto RegCount = 4;
 using Reg32 = std::uint32_t;
-using RawString = std::array<char, RegCount * sizeof(Reg32) + 1>;
+using RawString = std::array<char, 12 + 1>;
 
 enum Register
 {
