@@ -3,8 +3,9 @@
  * Contact:  ihor-drachuk-libs@pm.me  */
 
 #include <utils-cpp/system_tools.h>
+#include "Internal/system_tools_common.h"
 
-#ifdef UTILS_CPP_OS_WINDOWS
+#if defined(UTILS_CPP_OS_WINDOWS)
 #include <Windows.h>
 #else
 #include <unistd.h>
@@ -52,6 +53,16 @@ std::optional<bool> hasAdminRights()
 #else
     return getuid() == 0;
 #endif // UTILS_CPP_OS_WINDOWS
+}
+
+std::optional<ChassisTypeMapping> get_chassis_type()
+{
+    return internal::get_chassis_type();
+}
+
+std::optional<std::string> get_device_name()
+{
+    return internal::get_device_name();
 }
 
 } // namespace utils_cpp

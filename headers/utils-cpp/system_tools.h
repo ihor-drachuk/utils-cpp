@@ -4,9 +4,14 @@
 
 #pragma once
 #include <optional>
+#include <string>
+#include <utils-cpp/Internal/chassis_types.h>
 
 namespace utils_cpp {
 
 std::optional<bool> hasAdminRights();
+
+std::optional<ChassisTypeMapping> get_chassis_type(); // Example: { ChassisTypeGeneralized::Desktop, ChassisTypeDetailed::MiniTower, "Mini Tower", "Desktop" }
+std::optional<std::string> get_device_name();         // UTF8-encoded. Example: "My computer"
 
 } // namespace utils_cpp
