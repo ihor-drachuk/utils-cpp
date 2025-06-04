@@ -14,7 +14,19 @@ target_include_directories(utils-cpp PUBLIC headers)
 target_compile_features(utils-cpp PUBLIC cxx_std_17)
 
 find_package(Threads REQUIRED)
-target_link_libraries(utils-cpp PUBLIC Threads::Threads)
+
+# Find macOS frameworks
+if(APPLE)
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
+    find_library(IOKIT_FRAMEWORK IOKit)
+endif()
+
+target_link_libraries(utils-cpp PUBLIC
+    Threads::Threads
+    $<$<PLATFORM_ID:Windows>:wbemuuid.lib>
+    $<$<PLATFORM_ID:Darwin>:${COREFOUNDATION_FRAMEWORK}>
+    $<$<PLATFORM_ID:Darwin>:${IOKIT_FRAMEWORK}>
+)
 
 # Detect OS
 if (WIN32)
