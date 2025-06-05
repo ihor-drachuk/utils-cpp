@@ -13,7 +13,7 @@
 
 namespace utils_cpp {
 
-std::optional<bool> hasAdminRights()
+std::optional<bool> has_admin_rights()
 {
 #if 0 // Alternative solution
     bool fRet = false;
