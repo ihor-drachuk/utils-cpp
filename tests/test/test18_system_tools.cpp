@@ -37,7 +37,7 @@ TEST(utils_cpp, system_tools_GetDeviceName)
 
 TEST(utils_cpp, system_tools_HasAdminRights)
 {
-    hasAdminRights();
+    has_admin_rights();
 }
 
 TEST(utils_cpp, system_tools_MultipleCallsConsistency)
@@ -45,9 +45,9 @@ TEST(utils_cpp, system_tools_MultipleCallsConsistency)
     // Test that multiple calls return consistent results
     const auto chassisType1 = get_chassis_type();
     const auto deviceName1 = get_device_name();
-    const auto adminRights1 = hasAdminRights();
+    const auto adminRights1 = has_admin_rights();
 
-    const auto adminRights2 = hasAdminRights();
+    const auto adminRights2 = has_admin_rights();
     const auto deviceName2 = get_device_name();
     const auto chassisType2 = get_chassis_type();
 
@@ -86,7 +86,7 @@ TEST(utils_cpp, system_tools_ChassisTypeMapping_ValidStrings)
 
 TEST(utils_cpp, system_tools_AdminRights_ReturnType)
 {
-    hasAdminRights();
+    has_admin_rights();
 }
 
 TEST(utils_cpp, system_tools_DeviceName)
