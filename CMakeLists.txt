@@ -23,7 +23,12 @@ endif()
 
 target_link_libraries(utils-cpp PUBLIC
     Threads::Threads
+    # Windows
     $<$<PLATFORM_ID:Windows>:wbemuuid.lib>
+    $<$<PLATFORM_ID:Windows>:ole32.lib>
+    $<$<PLATFORM_ID:Windows>:oleaut32.lib>
+    $<$<PLATFORM_ID:Windows>:setupapi.lib>
+    # macOS
     $<$<PLATFORM_ID:Darwin>:${COREFOUNDATION_FRAMEWORK}>
     $<$<PLATFORM_ID:Darwin>:${IOKIT_FRAMEWORK}>
 )
