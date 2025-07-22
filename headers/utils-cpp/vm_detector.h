@@ -4,6 +4,8 @@
 
 #include <optional>
 
+/* Notice! This module wasn't tested enough yet! */
+
 namespace utils_cpp {
 
 enum class VM {
@@ -16,6 +18,10 @@ enum class VM {
     Xen
 };
 
-std::optional<VM> detectVM();
+// CPUID-based detection (may be masked by Hyper-V)
+std::optional<VM> detectSupervisor();
+
+// Non-CPUID detection (works around Hyper-V masking)
+std::optional<VM> detectVmOnly();
 
 } // namespace utils_cpp
