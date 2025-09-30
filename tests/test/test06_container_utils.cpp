@@ -228,6 +228,62 @@ TEST(utils_cpp, ContainerUtilsTest_contains)
     ASSERT_FALSE(utils_cpp::contains_if(std::vector<int> {1,2,3,4}, [](auto x){ return x == 10; }));
 }
 
+TEST(utils_cpp, ContainerUtilsTest_count)
+{
+    // Test with vector - single occurrence
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {1,2,3,4}, 2), 1);
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {1,2,3,4}, 1), 1);
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {1,2,3,4}, 4), 1);
+
+    // Test with vector - multiple occurrences
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {1,2,2,3,2,4}, 2), 3);
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {5,5,5,5}, 5), 4);
+
+    // Test with vector - no occurrences
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {1,2,3,4}, 10), 0);
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {1,2,3,4}, 0), 0);
+
+    // Test with empty vector
+    ASSERT_EQ(utils_cpp::count(std::vector<int> {}, 1), 0);
+
+    // Test with list
+    ASSERT_EQ(utils_cpp::count(std::list<int> {1,2,2,3}, 2), 2);
+    ASSERT_EQ(utils_cpp::count(std::list<int> {1,2,3,4}, 5), 0);
+
+    // Test with strings
+    ASSERT_EQ(utils_cpp::count(std::vector<std::string> {"a", "b", "c", "b"}, std::string("b")), 2);
+    ASSERT_EQ(utils_cpp::count(std::vector<std::string> {"a", "b", "c"}, std::string("d")), 0);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_count_if)
+{
+    // Test with simple predicates
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {1,2,3,4}, [](auto x){ return x == 2; }), 1);
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {1,2,3,4}, [](auto x){ return x > 2; }), 2);
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {1,2,3,4}, [](auto x){ return x < 3; }), 2);
+
+    // Test with even/odd
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {1,2,3,4,5,6}, [](auto x){ return x % 2 == 0; }), 3);
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {1,2,3,4,5,6}, [](auto x){ return x % 2 == 1; }), 3);
+
+    // Test with no matches
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {1,2,3,4}, [](auto x){ return x > 10; }), 0);
+
+    // Test with all matches
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {1,2,3,4}, [](auto){ return true; }), 4);
+
+    // Test with empty container
+    ASSERT_EQ(utils_cpp::count_if(std::vector<int> {}, [](auto x){ return x > 0; }), 0);
+
+    // Test with list
+    ASSERT_EQ(utils_cpp::count_if(std::list<int> {10,20,30,40}, [](auto x){ return x >= 20; }), 3);
+
+    // Test with strings
+    ASSERT_EQ(utils_cpp::count_if(
+        std::vector<std::string> {"apple", "banana", "apricot", "cherry"},
+        [](const auto& s){ return s[0] == 'a'; }), 2);
+}
+
 TEST(utils_cpp, ContainerUtilsTest_index_of)
 {
     ASSERT_EQ(utils_cpp::index_of(std::vector<int> {1,2,3,4}, 2), 1);
