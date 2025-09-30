@@ -57,6 +57,9 @@
  *   - all_of,    any_of,    none_of    (container, value,     default result if empty)
  *   - all_of_if, any_of_if, none_of_if (container, predicate, default result if empty)
  *
+ *   - count    (container, value)
+ *   - count_if (container, predicate)
+ *
  *
  *   --- COPY/MODIFICATION ---
  *
@@ -689,6 +692,20 @@ bool none_of_if(const Container& container, const Callable& predicate, bool defa
         return defaultResult;
 
     return std::none_of(std::cbegin(container), std::cend(container), predicate);
+}
+
+template<typename Container,
+         typename ItemType>
+size_t count(const Container& container, const ItemType& value)
+{
+    return static_cast<size_t>(std::count(std::cbegin(container), std::cend(container), value));
+}
+
+template<typename Container,
+         typename Callable>
+size_t count_if(const Container& container, const Callable& predicate)
+{
+    return static_cast<size_t>(std::count_if(std::cbegin(container), std::cend(container), predicate));
 }
 
 template<template<typename...> class OverrideContainer = Internal::Empty,
