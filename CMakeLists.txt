@@ -7,6 +7,9 @@ option(UTILS_CPP_ENABLE_BENCHMARK "utils-cpp: Enable benchmark" OFF)
 set(UTILS_CPP_GTEST_SEARCH_MODE "Auto" CACHE STRING "utils-cpp: Set GTest search mode")
 set_property(CACHE UTILS_CPP_GTEST_SEARCH_MODE PROPERTY STRINGS "Auto" "Force" "Skip")
 
+set(UTILS_CPP_TBB "Auto" CACHE STRING "utils-cpp: Link TBB (Intel Threading Building Blocks)")
+set_property(CACHE UTILS_CPP_TBB PROPERTY STRINGS "Auto" "ON" "OFF")
+
 FILE(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.h headers/*.h)
 
 add_library(utils-cpp STATIC ${SOURCES})
@@ -14,6 +17,34 @@ target_include_directories(utils-cpp PUBLIC headers)
 target_compile_features(utils-cpp PUBLIC cxx_std_17)
 
 find_package(Threads REQUIRED)
+
+# ---- Find TBB (Intel Threading Building Blocks) ----
+# On Windows, assume TBB is always available without explicit linking
+# On Linux/MacOS, find and link TBB based on the option
+set(UTILS_CPP_TBB_ENABLED FALSE)
+
+if(WIN32)
+    # On Windows, assume TBB is always enabled
+    set(UTILS_CPP_TBB_ENABLED TRUE)
+else()
+    # On Linux/MacOS, handle TBB based on the option
+    if(UTILS_CPP_TBB STREQUAL "ON")
+        find_package(TBB REQUIRED)
+        set(UTILS_CPP_TBB_ENABLED TRUE)
+    elseif(UTILS_CPP_TBB STREQUAL "Auto")
+        find_package(TBB QUIET)
+        if(TBB_FOUND)
+            set(UTILS_CPP_TBB_ENABLED TRUE)
+        endif()
+    endif()
+    # If OFF or not found in Auto mode, UTILS_CPP_TBB_ENABLED remains FALSE
+endif()
+
+# Enable execution policy flag when TBB is available
+if(UTILS_CPP_TBB_ENABLED)
+    target_compile_definitions(utils-cpp PUBLIC UTILS_CPP_EXECUTION_POLICY_ENABLED=1)
+endif()
+# ---- ----
 
 # Find macOS frameworks
 if(APPLE)
@@ -32,6 +63,8 @@ target_link_libraries(utils-cpp PUBLIC
     # macOS
     $<$<PLATFORM_ID:Darwin>:${COREFOUNDATION_FRAMEWORK}>
     $<$<PLATFORM_ID:Darwin>:${IOKIT_FRAMEWORK}>
+    # TBB on Linux/MacOS when found
+    $<$<BOOL:${UTILS_CPP_TBB_ENABLED}>:$<$<NOT:$<PLATFORM_ID:Windows>>:TBB::tbb>>
 )
 
 # Detect OS

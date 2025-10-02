@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <utility>
 
-#if __cplusplus >= 201703L && defined(__cpp_lib_parallel_algorithm)
+#if __cplusplus >= 201703L && defined(__cpp_lib_parallel_algorithm) && defined(UTILS_CPP_EXECUTION_POLICY_ENABLED)
 #include <execution>
 #define UTILS_CPP_HAS_EXECUTION_POLICIES 1
 #endif
