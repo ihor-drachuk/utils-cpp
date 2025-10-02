@@ -379,6 +379,43 @@ TEST(utils_cpp, ContainerUtilsTest_reduce)
     ASSERT_EQ(utils_cpp::reduce(std::vector<int> {42}, 10, std::plus<>(), {999}), 52);
 }
 
+TEST(utils_cpp, ContainerUtilsTest_transform_reduce)
+{
+    // Test basic transform and reduce (sum of doubled values)
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {1,2,3,4}, 0, std::plus<>(), [](int x){ return x * 2; }), 20);
+
+    // Test with non-zero init
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {1,2,3,4}, 10, std::plus<>(), [](int x){ return x * 2; }), 30);
+
+    // Test with empty container
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {}, 0, std::plus<>(), [](int x){ return x * 2; }), 0);
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {}, 100, std::plus<>(), [](int x){ return x * 2; }), 100);
+
+    // Test with empty container and custom defaultValue
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {}, 100, std::plus<>(), [](int x){ return x * 2; }, {-1}), -1);
+
+    // Test with non-empty container and defaultValue (should be ignored)
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {1,2,3}, 0, std::plus<>(), [](int x){ return x * 2; }, {999}), 12);
+
+    // Test with multiplication reduce
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {1,2,3,4}, 1, std::multiplies<>(), [](int x){ return x + 1; }), 120);
+    // (1+1) * (2+1) * (3+1) * (4+1) = 2 * 3 * 4 * 5 = 120
+
+    // Test with list
+    ASSERT_EQ(utils_cpp::transform_reduce(std::list<int> {5,10,15}, 0, std::plus<>(), [](int x){ return x / 5; }), 6);
+    // (5/5) + (10/5) + (15/5) = 1 + 2 + 3 = 6
+
+    // Test with strings (transform to length, sum lengths)
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<std::string> {"a", "bb", "ccc"}, 0, std::plus<>(), [](const auto& s){ return s.size(); }), 6);
+
+    // Test with doubles
+    ASSERT_NEAR(utils_cpp::transform_reduce(std::vector<double> {1.0, 2.0, 3.0}, 0.0, std::plus<>(), [](double x){ return x * x; }), 14.0, 0.001);
+    // 1^2 + 2^2 + 3^2 = 1 + 4 + 9 = 14
+
+    // Test single element
+    ASSERT_EQ(utils_cpp::transform_reduce(std::vector<int> {5}, 0, std::plus<>(), [](int x){ return x * 10; }), 50);
+}
+
 #ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
 TEST(utils_cpp, ContainerUtilsTest_ExecutionPolicy)
 {
@@ -493,6 +530,16 @@ TEST(utils_cpp, ContainerUtilsTest_ExecutionPolicy)
         // Test with defaultValue
         ASSERT_EQ(utils_cpp::reduce(std::execution::seq, std::vector<int> {}, 100, std::plus<>(), {-1}), -1);
         ASSERT_EQ(utils_cpp::reduce(std::execution::seq, std::vector<int> {1,2,3}, 0, std::plus<>(), {999}), 6);
+    }
+
+    // Test transform_reduce with execution policy
+    {
+        ASSERT_EQ(utils_cpp::transform_reduce(std::execution::seq, std::vector<int> {1,2,3,4}, 0, std::plus<>(), [](int x){ return x * 2; }), 20);
+        ASSERT_EQ(utils_cpp::transform_reduce(std::execution::seq, std::vector<int> {1,2,3,4}, 10, std::plus<>(), [](int x){ return x * 2; }), 30);
+
+        // Test with defaultValue
+        ASSERT_EQ(utils_cpp::transform_reduce(std::execution::seq, std::vector<int> {}, 100, std::plus<>(), [](int x){ return x * 2; }, {-1}), -1);
+        ASSERT_EQ(utils_cpp::transform_reduce(std::execution::seq, std::vector<int> {1,2,3}, 0, std::plus<>(), [](int x){ return x * 2; }, {999}), 12);
     }
 
     // Test transform with execution policy
