@@ -60,6 +60,9 @@
  *   - count    (container, value)
  *   - count_if (container, predicate)
  *
+ *   - accumulate (container, init = T(), op = std::plus<>, defaultValue = std::nullopt)
+ *   - reduce     (container, init = T(), op = std::plus<>, defaultValue = std::nullopt)
+ *
  *
  *   --- COPY/MODIFICATION ---
  *
@@ -706,6 +709,28 @@ template<typename Container,
 size_t count_if(const Container& container, const Callable& predicate)
 {
     return static_cast<size_t>(std::count_if(std::cbegin(container), std::cend(container), predicate));
+}
+
+template<typename Container,
+         typename T = typename Container::value_type,
+         typename BinaryOp = std::plus<>>
+T accumulate(const Container& container, T init = T(), const BinaryOp& op = {}, std::optional<T> defaultValue = std::nullopt)
+{
+    if (container.empty())
+        return defaultValue.value_or(init);
+
+    return std::accumulate(std::cbegin(container), std::cend(container), init, op);
+}
+
+template<typename Container,
+         typename T = typename Container::value_type,
+         typename BinaryOp = std::plus<>>
+T reduce(const Container& container, T init = T(), const BinaryOp& op = {}, std::optional<T> defaultValue = std::nullopt)
+{
+    if (container.empty())
+        return defaultValue.value_or(init);
+
+    return std::reduce(std::cbegin(container), std::cend(container), init, op);
 }
 
 template<template<typename...> class OverrideContainer = Internal::Empty,

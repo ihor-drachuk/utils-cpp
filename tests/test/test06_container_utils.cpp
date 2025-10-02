@@ -284,6 +284,101 @@ TEST(utils_cpp, ContainerUtilsTest_count_if)
         [](const auto& s){ return s[0] == 'a'; }), 2);
 }
 
+TEST(utils_cpp, ContainerUtilsTest_accumulate)
+{
+    // Test basic sum with default init (0)
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {1,2,3,4}), 10);
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {1,2,3,4}, 0), 10);
+
+    // Test sum with non-zero init
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {1,2,3,4}, 10), 20);
+
+    // Test with empty container (default behavior - returns init)
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {}), 0);
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {}, 100), 100);
+
+    // Test with empty container and custom defaultValue
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {}, 100, std::plus<>(), {-1}), -1);
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {}, 10, std::plus<>(), {999}), 999);
+
+    // Test with non-empty container and defaultValue (defaultValue should be ignored)
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {1,2,3}, 0, std::plus<>(), {999}), 6);
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {1,2,3}, 10, std::plus<>(), {999}), 16);
+
+    // Test with multiplication
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {1,2,3,4}, 1, std::multiplies<>()), 24);
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {2,3,4}, 10, std::multiplies<>()), 240);
+
+    // Test with custom non-associative operation (works with accumulate's sequential guarantee)
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<int> {1,2,3,4}, 0, [](int acc, int x){ return acc + x * 2; }), 20);
+
+    // Test with list
+    ASSERT_EQ(utils_cpp::accumulate(std::list<int> {5,10,15}), 30);
+    ASSERT_EQ(utils_cpp::accumulate(std::list<int> {5,10,15}, 5), 35);
+
+    // Test with strings (concatenation)
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<std::string> {"a", "b", "c"}, std::string("")), "abc");
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<std::string> {"a", "b", "c"}, std::string("start:")), "start:abc");
+
+    // Test empty string container with custom defaultValue
+    ASSERT_EQ(utils_cpp::accumulate(std::vector<std::string> {}, std::string("init"), std::plus<>(), {std::string("EMPTY")}), "EMPTY");
+
+    // Test with doubles
+    ASSERT_NEAR(utils_cpp::accumulate(std::vector<double> {1.5, 2.5, 3.0}), 7.0, 0.001);
+    ASSERT_NEAR(utils_cpp::accumulate(std::vector<double> {1.5, 2.5, 3.0}, 0.5), 7.5, 0.001);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_reduce)
+{
+    // Test basic sum with default init (0)
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {1,2,3,4}), 10);
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {1,2,3,4}, 0), 10);
+
+    // Test sum with non-zero init
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {1,2,3,4}, 10), 20);
+
+    // Test with empty container (default behavior - returns init)
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {}), 0);
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {}, 100), 100);
+
+    // Test with empty container and custom defaultValue
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {}, 100, std::plus<>(), {-1}), -1);
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {}, 10, std::plus<>(), {999}), 999);
+
+    // Test with non-empty container and defaultValue (defaultValue should be ignored)
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {1,2,3}, 0, std::plus<>(), {999}), 6);
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {1,2,3}, 10, std::plus<>(), {999}), 16);
+
+    // Test with multiplication
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {1,2,3,4}, 1, std::multiplies<>()), 24);
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {2,3,4}, 10, std::multiplies<>()), 240);
+
+    // Test with custom associative operation
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {1,2,3,4}, 0, std::plus<>()), 10);
+
+    // Test with list
+    ASSERT_EQ(utils_cpp::reduce(std::list<int> {5,10,15}), 30);
+    ASSERT_EQ(utils_cpp::reduce(std::list<int> {5,10,15}, 5), 35);
+
+    // Test with strings (concatenation)
+    ASSERT_EQ(utils_cpp::reduce(std::vector<std::string> {"a", "b", "c"}, std::string("")), "abc");
+    ASSERT_EQ(utils_cpp::reduce(std::vector<std::string> {"a", "b", "c"}, std::string("start:")), "start:abc");
+
+    // Test empty string container with custom defaultValue
+    ASSERT_EQ(utils_cpp::reduce(std::vector<std::string> {}, std::string("init"), std::plus<>(), {std::string("EMPTY")}), "EMPTY");
+
+    // Test with doubles
+    ASSERT_NEAR(utils_cpp::reduce(std::vector<double> {1.5, 2.5, 3.0}), 7.0, 0.001);
+    ASSERT_NEAR(utils_cpp::reduce(std::vector<double> {1.5, 2.5, 3.0}, 0.5), 7.5, 0.001);
+
+    // Test single element
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {42}), 42);
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {42}, 10), 52);
+
+    // Test single element with defaultValue (should be ignored)
+    ASSERT_EQ(utils_cpp::reduce(std::vector<int> {42}, 10, std::plus<>(), {999}), 52);
+}
+
 TEST(utils_cpp, ContainerUtilsTest_index_of)
 {
     ASSERT_EQ(utils_cpp::index_of(std::vector<int> {1,2,3,4}, 2), 1);
