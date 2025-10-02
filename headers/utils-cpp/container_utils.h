@@ -70,6 +70,7 @@
  *
  *   - accumulate (container, init = T(), op = std::plus<>, defaultValue = std::nullopt)
  *   - reduce     (container, init = T(), op = std::plus<>, defaultValue = std::nullopt)
+ *   - transform_reduce (container, init, reduce_op, transform_op, defaultValue = std::nullopt)
  *
  *
  *   --- COPY/MODIFICATION ---
@@ -1114,6 +1115,40 @@ T reduce(ExecutionPolicy&& policy, const Container& container, T init = T(), con
         return defaultValue.value_or(init);
 
     return std::reduce(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), init, op);
+}
+#endif
+
+template<typename Container,
+         typename T,
+         typename BinaryReduceOp,
+         typename UnaryTransformOp,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
+T transform_reduce(const Container& container, T init, const BinaryReduceOp& reduce_op, const UnaryTransformOp& transform_op, std::optional<T> defaultValue = std::nullopt)
+{
+    if (container.empty())
+        return defaultValue.value_or(init);
+
+    return std::transform_reduce(std::cbegin(container), std::cend(container), init, reduce_op, transform_op);
+}
+
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename T,
+         typename BinaryReduceOp,
+         typename UnaryTransformOp,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+T transform_reduce(ExecutionPolicy&& policy, const Container& container, T init, const BinaryReduceOp& reduce_op, const UnaryTransformOp& transform_op, std::optional<T> defaultValue = std::nullopt)
+{
+    if (container.empty())
+        return defaultValue.value_or(init);
+
+    return std::transform_reduce(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), init, reduce_op, transform_op);
 }
 #endif
 
