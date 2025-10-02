@@ -379,6 +379,141 @@ TEST(utils_cpp, ContainerUtilsTest_reduce)
     ASSERT_EQ(utils_cpp::reduce(std::vector<int> {42}, 10, std::plus<>(), {999}), 52);
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+TEST(utils_cpp, ContainerUtilsTest_ExecutionPolicy)
+{
+    // Test find with execution policy
+    {
+        auto result = utils_cpp::find(std::execution::seq, std::vector<int> {1,2,3,4}, 2);
+        ASSERT_TRUE(result.has_value());
+        ASSERT_EQ(*result, 2);
+        ASSERT_EQ(result.index(), 1);
+    }
+
+    // Test find_if with execution policy
+    {
+        auto result = utils_cpp::find_if(std::execution::seq, std::vector<int> {1,2,3,4}, [](int x){ return x > 2; });
+        ASSERT_TRUE(result.has_value());
+        ASSERT_EQ(*result, 3);
+    }
+
+    // Test find_ref with execution policy
+    {
+        std::vector<int> container {1,2,3,4};
+        auto result = utils_cpp::find_ref(std::execution::seq, container, 2);
+        ASSERT_TRUE(result.has_value());
+        ASSERT_EQ(*result, 2);
+        *result = 20;
+        ASSERT_EQ(container[1], 20);
+    }
+
+    // Test find_if_ref with execution policy
+    {
+        std::vector<int> container {1,2,3,4};
+        auto result = utils_cpp::find_if_ref(std::execution::seq, container, [](int x){ return x > 2; });
+        ASSERT_TRUE(result.has_value());
+        ASSERT_EQ(*result, 3);
+        *result = 30;
+        ASSERT_EQ(container[2], 30);
+    }
+
+    // Test find_cref with execution policy
+    {
+        const std::vector<int> container {1,2,3,4};
+        auto result = utils_cpp::find_cref(std::execution::seq, container, 2);
+        ASSERT_TRUE(result.has_value());
+        ASSERT_EQ(*result, 2);
+    }
+
+    // Test find_if_cref with execution policy
+    {
+        const std::vector<int> container {1,2,3,4};
+        auto result = utils_cpp::find_if_cref(std::execution::seq, container, [](int x){ return x > 2; });
+        ASSERT_TRUE(result.has_value());
+        ASSERT_EQ(*result, 3);
+    }
+
+    // Test contains with execution policy
+    {
+        ASSERT_TRUE(utils_cpp::contains(std::execution::seq, std::vector<int> {1,2,3,4}, 2));
+        ASSERT_FALSE(utils_cpp::contains(std::execution::seq, std::vector<int> {1,2,3,4}, 10));
+    }
+
+    // Test contains_if with execution policy
+    {
+        ASSERT_TRUE(utils_cpp::contains_if(std::execution::seq, std::vector<int> {1,2,3,4}, [](int x){ return x > 2; }));
+        ASSERT_FALSE(utils_cpp::contains_if(std::execution::seq, std::vector<int> {1,2,3,4}, [](int x){ return x > 10; }));
+    }
+
+    // Test count with execution policy
+    {
+        ASSERT_EQ(utils_cpp::count(std::execution::seq, std::vector<int> {1,2,2,3,2,4}, 2), 3);
+        ASSERT_EQ(utils_cpp::count(std::execution::seq, std::vector<int> {1,2,3,4}, 10), 0);
+    }
+
+    // Test count_if with execution policy
+    {
+        ASSERT_EQ(utils_cpp::count_if(std::execution::seq, std::vector<int> {1,2,3,4,5,6}, [](int x){ return x % 2 == 0; }), 3);
+    }
+
+    // Test all_of_if with execution policy
+    {
+        ASSERT_TRUE(utils_cpp::all_of_if(std::execution::seq, std::vector<int> {2,4,6,8}, [](int x){ return x % 2 == 0; }));
+        ASSERT_FALSE(utils_cpp::all_of_if(std::execution::seq, std::vector<int> {2,3,4,6}, [](int x){ return x % 2 == 0; }));
+    }
+
+    // Test any_of_if with execution policy
+    {
+        ASSERT_TRUE(utils_cpp::any_of_if(std::execution::seq, std::vector<int> {1,3,5,6}, [](int x){ return x % 2 == 0; }));
+        ASSERT_FALSE(utils_cpp::any_of_if(std::execution::seq, std::vector<int> {1,3,5,7}, [](int x){ return x % 2 == 0; }));
+    }
+
+    // Test none_of_if with execution policy
+    {
+        ASSERT_TRUE(utils_cpp::none_of_if(std::execution::seq, std::vector<int> {1,3,5,7}, [](int x){ return x % 2 == 0; }));
+        ASSERT_FALSE(utils_cpp::none_of_if(std::execution::seq, std::vector<int> {1,3,4,5}, [](int x){ return x % 2 == 0; }));
+    }
+
+    // Test accumulate with execution policy
+    {
+        ASSERT_EQ(utils_cpp::accumulate(std::execution::seq, std::vector<int> {1,2,3,4}), 10);
+        ASSERT_EQ(utils_cpp::accumulate(std::execution::seq, std::vector<int> {1,2,3,4}, 10), 20);
+
+        // Test with defaultValue
+        ASSERT_EQ(utils_cpp::accumulate(std::execution::seq, std::vector<int> {}, 100, std::plus<>(), {-1}), -1);
+        ASSERT_EQ(utils_cpp::accumulate(std::execution::seq, std::vector<int> {1,2,3}, 0, std::plus<>(), {999}), 6);
+    }
+
+    // Test reduce with execution policy
+    {
+        ASSERT_EQ(utils_cpp::reduce(std::execution::seq, std::vector<int> {1,2,3,4}), 10);
+        ASSERT_EQ(utils_cpp::reduce(std::execution::seq, std::vector<int> {1,2,3,4}, 10), 20);
+        ASSERT_EQ(utils_cpp::reduce(std::execution::seq, std::vector<int> {}), 0);
+
+        // Test with defaultValue
+        ASSERT_EQ(utils_cpp::reduce(std::execution::seq, std::vector<int> {}, 100, std::plus<>(), {-1}), -1);
+        ASSERT_EQ(utils_cpp::reduce(std::execution::seq, std::vector<int> {1,2,3}, 0, std::plus<>(), {999}), 6);
+    }
+
+    // Test transform with execution policy
+    {
+        auto result = utils_cpp::transform(std::execution::seq, std::vector<int> {1,2,3}, [](int v){ return v * 2; });
+        ASSERT_EQ(result, (std::vector<int>{2, 4, 6}));
+    }
+
+    // Test index_of with execution policy
+    {
+        ASSERT_EQ(utils_cpp::index_of(std::execution::seq, std::vector<int> {1,2,3,4}, 3), 2);
+        ASSERT_FALSE(utils_cpp::index_of(std::execution::seq, std::vector<int> {1,2,3,4}, 10));
+    }
+
+    // Test index_of_if with execution policy
+    {
+        ASSERT_EQ(utils_cpp::index_of_if(std::execution::seq, std::vector<int> {1,2,3,4}, [](int x){ return x > 2; }), 2);
+    }
+}
+#endif
+
 TEST(utils_cpp, ContainerUtilsTest_index_of)
 {
     ASSERT_EQ(utils_cpp::index_of(std::vector<int> {1,2,3,4}, 2), 1);

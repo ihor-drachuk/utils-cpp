@@ -11,6 +11,11 @@
 #include <type_traits>
 #include <utility>
 
+#if __cplusplus >= 201703L && defined(__cpp_lib_parallel_algorithm)
+#include <execution>
+#define UTILS_CPP_HAS_EXECUTION_POLICIES 1
+#endif
+
 // For random stuff
 #include <random>
 #include <limits>
@@ -18,6 +23,9 @@
 
 
 /*  Overview
+ *
+ *  Note: Many functions support C++17 ExecutionPolicy (std::execution::seq, std::execution::par, etc.)
+ *        as an optional first parameter for parallel execution.
  *
  *  --- TOOLS ---
  *
@@ -449,7 +457,13 @@ auto containerize(Iterator begin, Iterator end)
 
 template<typename T = void,
          typename Container,
-         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
@@ -457,10 +471,30 @@ auto find(const Container& container, const RT& value)
                                           SearchResult<RT, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find(ExecutionPolicy&& policy, const Container& container, const RT& value)
+{
+    auto it = std::find(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), value);
+    return (it == std::cend(container)) ? SearchResult<RT, true>() :
+                                          SearchResult<RT, true>(*it, Internal::distance(std::cbegin(container), it));
+}
+#endif
+
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find_if(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
@@ -468,11 +502,32 @@ auto find_if(const Container& container, const Callable& predicate)
                                           SearchResult<RT, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find_if(ExecutionPolicy&& policy, const Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+    return (it == std::cend(container)) ? SearchResult<RT, true>() :
+                                          SearchResult<RT, true>(*it, Internal::distance(std::cbegin(container), it));
+}
+#endif
+
 // Regular find functions (ref stored)
 
 template<typename T = void,
          typename Container,
-         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find_ref(Container& container, const RT& value)
 {
     auto it = std::find(std::begin(container), std::end(container), value);
@@ -480,10 +535,30 @@ auto find_ref(Container& container, const RT& value)
                                          SearchResult<std::reference_wrapper<RT>, true>(*it, Internal::distance(std::begin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find_ref(ExecutionPolicy&& policy, Container& container, const RT& value)
+{
+    auto it = std::find(std::forward<ExecutionPolicy>(policy), std::begin(container), std::end(container), value);
+    return (it == std::end(container)) ? SearchResult<std::reference_wrapper<RT>, true>() :
+                                         SearchResult<std::reference_wrapper<RT>, true>(*it, Internal::distance(std::begin(container), it));
+}
+#endif
+
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find_if_ref(Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::begin(container), std::end(container), predicate);
@@ -491,11 +566,32 @@ auto find_if_ref(Container& container, const Callable& predicate)
                                          SearchResult<std::reference_wrapper<RT>, true>(*it, Internal::distance(std::begin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find_if_ref(ExecutionPolicy&& policy, Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::forward<ExecutionPolicy>(policy), std::begin(container), std::end(container), predicate);
+    return (it == std::end(container)) ? SearchResult<std::reference_wrapper<RT>, true>() :
+                                         SearchResult<std::reference_wrapper<RT>, true>(*it, Internal::distance(std::begin(container), it));
+}
+#endif
+
 // Regular find functions (const-ref stored)
 
 template<typename T = void,
          typename Container,
-         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find_cref(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
@@ -503,10 +599,30 @@ auto find_cref(const Container& container, const RT& value)
                                           SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find_cref(ExecutionPolicy&& policy, const Container& container, const RT& value)
+{
+    auto it = std::find(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), value);
+    return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
+}
+#endif
+
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find_if_cref(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
@@ -514,9 +630,30 @@ auto find_if_cref(const Container& container, const Callable& predicate)
                                           SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find_if_cref(ExecutionPolicy&& policy, const Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+    return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
+}
+#endif
+
 template<typename T = void,
          typename Container,
-         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find_ref(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
@@ -524,16 +661,51 @@ auto find_ref(const Container& container, const RT& value)
                                           SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find_ref(ExecutionPolicy&& policy, const Container& container, const RT& value)
+{
+    auto it = std::find(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), value);
+    return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
+}
+#endif
+
 template<typename T = void,
          typename Container,
          typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 auto find_if_ref(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
                                           SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
 }
+
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto find_if_ref(ExecutionPolicy&& policy, const Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+    return (it == std::cend(container)) ? SearchResult<std::reference_wrapper<const RT>, true>() :
+                                          SearchResult<std::reference_wrapper<const RT>, true>(*it, Internal::distance(std::cbegin(container), it));
+}
+#endif
 
 // Find in map
 
@@ -585,20 +757,57 @@ auto find_in_map_cref(const Container& container, const KT& key)
 
 template<typename T = void,
          typename Container,
-         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 bool contains(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
     return (it != std::cend(container));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+bool contains(ExecutionPolicy&& policy, const Container& container, const RT& value)
+{
+    auto it = std::find(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), value);
+    return (it != std::cend(container));
+}
+#endif
+
 template<typename Container,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 bool contains_if(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it != std::cend(container));
 }
+
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+bool contains_if(ExecutionPolicy&& policy, const Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+    return (it != std::cend(container));
+}
+#endif
 
 template<typename Container,
          typename KT>
@@ -620,7 +829,13 @@ bool contains_map(const Container& container, const KT& key)
 
 template<typename T = void,
          typename Container,
-         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>>
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 std::optional<size_t> index_of(const Container& container, const RT& value)
 {
     auto it = std::find(std::cbegin(container), std::cend(container), value);
@@ -628,14 +843,47 @@ std::optional<size_t> index_of(const Container& container, const RT& value)
                                           std::optional<size_t>(Internal::distance(std::cbegin(container), it));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename T = void,
+         typename Container,
+         typename RT = std::conditional_t<std::is_same_v<T, void>, typename Container::value_type, T>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+std::optional<size_t> index_of(ExecutionPolicy&& policy, const Container& container, const RT& value)
+{
+    auto it = std::find(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), value);
+    return (it == std::cend(container)) ? std::optional<size_t>() :
+                                          std::optional<size_t>(Internal::distance(std::cbegin(container), it));
+}
+#endif
+
 template<typename Container,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 std::optional<size_t> index_of_if(const Container& container, const Callable& predicate)
 {
     auto it = std::find_if(std::cbegin(container), std::cend(container), predicate);
     return (it == std::cend(container)) ? std::optional<size_t>() :
                                           std::optional<size_t>(Internal::distance(std::cbegin(container), it));
 }
+
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+std::optional<size_t> index_of_if(ExecutionPolicy&& policy, const Container& container, const Callable& predicate)
+{
+    auto it = std::find_if(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+    return (it == std::cend(container)) ? std::optional<size_t>() :
+                                          std::optional<size_t>(Internal::distance(std::cbegin(container), it));
+}
+#endif
 
 template<typename Container,
          typename ItemType>
@@ -668,7 +916,13 @@ bool none_of(const Container& container, const ItemType& value, bool defaultResu
 }
 
 template<typename Container,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 bool all_of_if(const Container& container, const Callable& predicate, bool defaultResult = true)
 {
     if (container.size() == 0)
@@ -677,8 +931,28 @@ bool all_of_if(const Container& container, const Callable& predicate, bool defau
     return std::all_of(std::cbegin(container), std::cend(container), predicate);
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+bool all_of_if(ExecutionPolicy&& policy, const Container& container, const Callable& predicate, bool defaultResult = true)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::all_of(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+}
+#endif
+
 template<typename Container,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 bool any_of_if(const Container& container, const Callable& predicate, bool defaultResult = false)
 {
     if (container.size() == 0)
@@ -687,8 +961,28 @@ bool any_of_if(const Container& container, const Callable& predicate, bool defau
     return std::any_of(std::cbegin(container), std::cend(container), predicate);
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+bool any_of_if(ExecutionPolicy&& policy, const Container& container, const Callable& predicate, bool defaultResult = false)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::any_of(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+}
+#endif
+
 template<typename Container,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 bool none_of_if(const Container& container, const Callable& predicate, bool defaultResult = true)
 {
     if (container.size() == 0)
@@ -697,23 +991,77 @@ bool none_of_if(const Container& container, const Callable& predicate, bool defa
     return std::none_of(std::cbegin(container), std::cend(container), predicate);
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+bool none_of_if(ExecutionPolicy&& policy, const Container& container, const Callable& predicate, bool defaultResult = true)
+{
+    if (container.size() == 0)
+        return defaultResult;
+
+    return std::none_of(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate);
+}
+#endif
+
 template<typename Container,
-         typename ItemType>
+         typename ItemType,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 size_t count(const Container& container, const ItemType& value)
 {
     return static_cast<size_t>(std::count(std::cbegin(container), std::cend(container), value));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename ItemType,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+size_t count(ExecutionPolicy&& policy, const Container& container, const ItemType& value)
+{
+    return static_cast<size_t>(std::count(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), value));
+}
+#endif
+
 template<typename Container,
-         typename Callable>
+         typename Callable,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 size_t count_if(const Container& container, const Callable& predicate)
 {
     return static_cast<size_t>(std::count_if(std::cbegin(container), std::cend(container), predicate));
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename Callable,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+size_t count_if(ExecutionPolicy&& policy, const Container& container, const Callable& predicate)
+{
+    return static_cast<size_t>(std::count_if(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), predicate));
+}
+#endif
+
 template<typename Container,
          typename T = typename Container::value_type,
-         typename BinaryOp = std::plus<>>
+         typename BinaryOp = std::plus<>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 T accumulate(const Container& container, T init = T(), const BinaryOp& op = {}, std::optional<T> defaultValue = std::nullopt)
 {
     if (container.empty())
@@ -722,9 +1070,30 @@ T accumulate(const Container& container, T init = T(), const BinaryOp& op = {}, 
     return std::accumulate(std::cbegin(container), std::cend(container), init, op);
 }
 
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename T = typename Container::value_type,
+         typename BinaryOp = std::plus<>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+T accumulate(ExecutionPolicy&& policy, const Container& container, T init = T(), const BinaryOp& op = {}, std::optional<T> defaultValue = std::nullopt)
+{
+    if (container.empty())
+        return defaultValue.value_or(init);
+
+    return std::reduce(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), init, op);
+}
+#endif
+
 template<typename Container,
          typename T = typename Container::value_type,
-         typename BinaryOp = std::plus<>>
+         typename BinaryOp = std::plus<>,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Container>>>
+#else
+         typename = void
+#endif
+         >
 T reduce(const Container& container, T init = T(), const BinaryOp& op = {}, std::optional<T> defaultValue = std::nullopt)
 {
     if (container.empty())
@@ -732,6 +1101,21 @@ T reduce(const Container& container, T init = T(), const BinaryOp& op = {}, std:
 
     return std::reduce(std::cbegin(container), std::cend(container), init, op);
 }
+
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename Container,
+         typename T = typename Container::value_type,
+         typename BinaryOp = std::plus<>,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+T reduce(ExecutionPolicy&& policy, const Container& container, T init = T(), const BinaryOp& op = {}, std::optional<T> defaultValue = std::nullopt)
+{
+    if (container.empty())
+        return defaultValue.value_or(init);
+
+    return std::reduce(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), init, op);
+}
+#endif
 
 template<template<typename...> class OverrideContainer = Internal::Empty,
          typename Container,
@@ -755,7 +1139,13 @@ auto copy_if(const Container& container, const Callable& predicate)
 template<template<typename...> class OverrideContainer = Internal::Empty,
          template<typename...> class Container,
          typename... CArgs,
-         typename Transformer>
+         typename Transformer,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<Transformer>>>
+#else
+         typename = void
+#endif
+         >
 auto transform(const Container<CArgs...>& container, const Transformer& transformer)
 {
     using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
@@ -773,7 +1163,40 @@ auto transform(const Container<CArgs...>& container, const Transformer& transfor
     return result;
 }
 
-template<typename ResultingContainer, typename Container, typename Transformer>
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<template<typename...> class OverrideContainer = Internal::Empty,
+         template<typename...> class Container,
+         typename ExecutionPolicy,
+         typename... CArgs,
+         typename Transformer,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto transform(ExecutionPolicy&& policy, const Container<CArgs...>& container, const Transformer& transformer)
+{
+    using ElementType = std::remove_cv_t<std::remove_reference_t<decltype(*std::cbegin(container))>>;
+    using NewType = std::decay_t<decltype(transformer(std::declval<ElementType>()))>;
+    using ResultType = std::conditional_t<std::is_same_v<OverrideContainer<void>, Internal::Empty<void>>, Container<NewType>, OverrideContainer<NewType>>;
+
+    static_assert(Internal::CU_Methods::has_push_back<ResultType>::value,
+                  "ExecutionPolicy is not supported for set-like containers. Use sequential version without ExecutionPolicy.");
+
+    ResultType result;
+    Internal::tryReserve(result, container.size());
+    result.resize(container.size());
+    std::transform(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), std::begin(result), transformer);
+
+    return result;
+}
+#endif
+
+template<typename ResultingContainer,
+         typename Container,
+         typename Transformer,
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+         typename = std::enable_if_t<!std::is_execution_policy_v<std::decay_t<ResultingContainer>>>
+#else
+         typename = void
+#endif
+         >
 auto transform(const Container& container, const Transformer& transformer)
 {
     ResultingContainer result;
@@ -786,6 +1209,26 @@ auto transform(const Container& container, const Transformer& transformer)
 
     return result;
 }
+
+#ifdef UTILS_CPP_HAS_EXECUTION_POLICIES
+template<typename ExecutionPolicy,
+         typename ResultingContainer,
+         typename Container,
+         typename Transformer,
+         typename = std::enable_if_t<std::is_execution_policy_v<std::decay_t<ExecutionPolicy>>>>
+auto transform(ExecutionPolicy&& policy, const Container& container, const Transformer& transformer)
+{
+    static_assert(Internal::CU_Methods::has_push_back<ResultingContainer>::value,
+                  "ExecutionPolicy is not supported for set-like containers. Use sequential version without ExecutionPolicy.");
+
+    ResultingContainer result;
+    Internal::tryReserve(result, container.size());
+    result.resize(container.size());
+    std::transform(std::forward<ExecutionPolicy>(policy), std::cbegin(container), std::cend(container), std::begin(result), transformer);
+
+    return result;
+}
+#endif
 
 template<template<typename...> class OverrideContainer = Internal::Empty,
          template<typename...> class Container,
