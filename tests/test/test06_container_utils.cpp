@@ -934,17 +934,493 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
+// ---- Test difference_sorted_detailed with changes ----
+
+namespace {
+
+struct Item {
+    int sortKey {};
+    int value {};
+
+    Item() = default;
+    Item(int k, int v) : sortKey{k}, value{v} {}
+
+    bool operator==(const Item& rhs) const                    { return sortKey == rhs.sortKey && value == rhs.value; }
+    static bool compareKeyLess(const Item& lhs, const Item& rhs) { return lhs.sortKey < rhs.sortKey; }
+    static bool compareEq(const Item& lhs, const Item& rhs)   { return lhs == rhs; }
+};
+
+} // namespace
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_with_changes_disabled)
+{
+    // Test with enableCompareEq = false - changed handler should NOT be called
+    std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}};
+    std::vector<Item> b {{1, 100}, {2, 20}, {3, 300}};  // Items 1 and 3 have different values
+    std::vector<Item> c = a;
+    size_t addCount = 0;
+    size_t removeCount = 0;
+    size_t changeCount = 0;
+
+    auto adder = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*insertionIndex*/){ addCount++; };
+    auto remover = [&](auto /*minIndex*/, int64_t /*maxIndex*/){ removeCount++; };
+    auto changer = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*dstStartIndex*/){ changeCount++; };
+
+    // Call with enableCompareEq = false - changes should NOT be detected
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, false, Item::compareKeyLess);
+
+    // Without change detection, c won't match b (items at indices 0 and 2 remain unchanged)
+    EXPECT_EQ(addCount, 0u);
+    EXPECT_EQ(removeCount, 0u);
+    EXPECT_EQ(changeCount, 0u);
+    EXPECT_NE(c, b);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_with_changes_enabled)
+{
+    // Test with enableCompareEq = true - changed handler SHOULD be called and update container
+    std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}};
+    std::vector<Item> b {{1, 100}, {2, 20}, {3, 300}};  // Items 1 and 3 have different values
+    std::vector<Item> c = a;
+    size_t addCount = 0;
+    size_t removeCount = 0;
+    size_t changeCount = 0;
+
+    auto adder = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*insertionIndex*/) { addCount++; };
+    auto remover = [&](auto /*minIndex*/, int64_t /*maxIndex*/) { removeCount++; };
+
+    auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+        changeCount++;
+        auto dstIt = c.begin() + dstStartIndex;
+        for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+            *dstIt = *srcIt;
+        }
+    };
+
+    // Call with enableCompareEq = true
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess, Item::compareEq);
+
+    // With change detection enabled, c should match b
+    EXPECT_EQ(addCount, 0u);
+    EXPECT_EQ(removeCount, 0u);
+    EXPECT_EQ(changeCount, 2u);
+    EXPECT_EQ(c, b);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_mixed_operations)
+{
+    // Test with additions, removals, AND changes in the same call
+    std::vector<Item> a {{1, 10}, {2, 20}, {4, 40}, {5, 50}};
+    std::vector<Item> b {{1, 100}, {2, 20}, {3, 30}, {5, 500}};
+    std::vector<Item> c = a;
+    // Changes: item 1 (index 0), item 5 (index 3->3)
+    // Additions: item 3
+    // Removals: item 4
+
+    auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+        c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+    };
+
+    auto remover = [&](auto minIndex, int64_t maxIndex){
+        c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+    };
+
+    auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+        auto dstIt = c.begin() + dstStartIndex;
+        for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+            *dstIt = *srcIt;
+        }
+    };
+
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+
+    EXPECT_EQ(c, b);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_no_changes_truly_equal)
+{
+    // Test when elements are sort-equal AND truly equal - no handler calls needed
+    std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}};
+    std::vector<Item> b {{1, 10}, {2, 20}, {3, 30}};
+    std::vector<Item> c = a;
+    size_t addCount = 0;
+    size_t removeCount = 0;
+    size_t changeCount = 0;
+
+    auto adder = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*insertionIndex*/){ addCount++; };
+    auto remover = [&](auto /*minIndex*/, int64_t /*maxIndex*/){ removeCount++; };
+    auto changer = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*dstStartIndex*/){ changeCount++; };
+
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+
+    EXPECT_EQ(addCount, 0u);
+    EXPECT_EQ(removeCount, 0u);
+    EXPECT_EQ(changeCount, 0u);
+    EXPECT_EQ(c, b);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_all_changed)
+{
+    // Test when all elements are changed - should be batched into one call
+    std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}};
+    std::vector<Item> b {{1, 100}, {2, 200}, {3, 300}};
+    std::vector<Item> c = a;
+    size_t addCount = 0;
+    size_t removeCount = 0;
+    size_t changeCount = 0;
+
+    auto adder = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*insertionIndex*/){ addCount++; };
+    auto remover = [&](auto /*minIndex*/, int64_t /*maxIndex*/){ removeCount++; };
+    auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+        changeCount++;
+        // All three should be batched into one call
+        EXPECT_EQ(dstStartIndex, 0);
+        EXPECT_EQ(std::distance(srcItBegin, srcItEnd), 3);
+        auto dstIt = c.begin() + dstStartIndex;
+        for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+            *dstIt = *srcIt;
+        }
+    };
+
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+
+    EXPECT_EQ(addCount, 0u);
+    EXPECT_EQ(removeCount, 0u);
+    EXPECT_EQ(changeCount, 1u);  // Should be called once for all three items (batched)
+    EXPECT_EQ(c, b);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_empty_containers)
+{
+    // Test with empty containers
+    std::vector<Item> a {};
+    std::vector<Item> b {};
+    std::vector<Item> c = a;
+    size_t addCount = 0;
+    size_t removeCount = 0;
+    size_t changeCount = 0;
+
+    auto adder = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*insertionIndex*/){ addCount++; };
+    auto remover = [&](auto /*minIndex*/, int64_t /*maxIndex*/){ removeCount++; };
+    auto changer = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*dstStartIndex*/){ changeCount++; };
+
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+
+    EXPECT_EQ(addCount, 0u);
+    EXPECT_EQ(removeCount, 0u);
+    EXPECT_EQ(changeCount, 0u);
+    EXPECT_EQ(c, b);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_consecutive_changes_batched)
+{
+    // Test that consecutive changed elements are batched together
+    std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}, {4, 40}, {5, 50}, {6, 60}};
+    std::vector<Item> b {{1, 100}, {2, 200}, {3, 300}, {4, 40}, {5, 500}, {6, 600}};
+    // Changes: items 1,2,3 should be batched (indices 0-2), then item 5,6 should be batched (indices 4-5)
+    size_t addCount = 0;
+    size_t removeCount = 0;
+    std::vector<std::tuple<int64_t, int64_t, int64_t>> changedIndices; // dstStartIndex, dstEndIndex, srcStartIndex
+
+    auto adder = [&](auto /*srcItBegin*/, auto /*srcItEnd*/, int64_t /*insertionIndex*/){ addCount++; };
+    auto remover = [&](auto /*minIndex*/, int64_t /*maxIndex*/){ removeCount++; };
+    auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+        auto count = std::distance(srcItBegin, srcItEnd);
+        auto dstEndIndex = dstStartIndex + count - 1;
+        auto srcStartIndex = std::distance(b.cbegin(), srcItBegin);
+        changedIndices.push_back({dstStartIndex, dstEndIndex, srcStartIndex});
+    };
+
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+
+    EXPECT_EQ(addCount, 0u);
+    EXPECT_EQ(removeCount, 0u);
+    ASSERT_EQ(changedIndices.size(), 2u); // Should be called twice: once for [0-2], once for [4-5]
+
+    EXPECT_EQ(changedIndices[0], std::make_tuple(0, 2, 0)); // dst[0-2] from src[0-2]
+    EXPECT_EQ(changedIndices[1], std::make_tuple(4, 5, 4)); // dst[4-5] from src[4-5]
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_intensive_corner_cases)
+{
+    // Comprehensive test with many operations and corner cases
+    // a: 1  2  3  4  5  6  7  8  9  10 11 12 13  14 15  16 17  18 19 20
+    // b: 0  1  2* 4* 5* 7  8  9* 11 12 13 14 15* 16 17* 18 19* 21 22 23
+    //    A  =  C  R  C  R  =  C  R  =  =  =  C   =  C   =  C   R  A  A  A
+    // Legend: = same, C changed, R removed, A added
+
+    std::vector<Item> a {
+        {1, 10},  {2, 20},  {3, 30},  {4, 40},  {5, 50},   // 0-4
+        {6, 60},  {7, 70},  {8, 80},  {9, 90},  {10, 100}, // 5-9
+        {11, 110}, {12, 120}, {13, 130}, {14, 140}, {15, 150}, // 10-14
+        {16, 160}, {17, 170}, {18, 180}, {19, 190}, {20, 200}  // 15-19
+    };
+
+    std::vector<Item> b {
+        {0, 0},    {1, 10},  {2, 22},  {4, 44},  {5, 55},   // 0-4: Add at start, same, change, remove, change
+        {7, 70},   {8, 80},  {9, 99},  {11, 110}, {12, 120}, // 5-9: remove, same, change, remove, same
+        {13, 130}, {14, 140}, {15, 155}, {16, 160}, {17, 177}, // 10-14: same, same, change, same, change
+        {18, 180}, {19, 199}, {21, 210}, {22, 220}, {23, 230}  // 15-19: same, change, add, add, add at end
+    };
+
+    std::vector<Item> c = a;
+    std::vector<std::tuple<int64_t, int64_t, int64_t>> additions;
+    std::vector<std::tuple<int64_t, int64_t>> removals;
+    std::vector<std::tuple<int64_t, int64_t, int64_t>> changes; // dstStartIndex, dstEndIndex, srcStartIndex
+
+    auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+        c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        additions.push_back({insertionIndex, insertionIndex + std::distance(srcItBegin, srcItEnd) - 1, -1});
+    };
+
+    auto remover = [&](auto minIndex, int64_t maxIndex){
+        c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        removals.push_back({minIndex, maxIndex});
+    };
+
+    auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+        auto dstIt = c.begin() + dstStartIndex;
+        for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+            *dstIt = *srcIt;
+        }
+        auto count = std::distance(srcItBegin, srcItEnd);
+        auto dstEndIndex = dstStartIndex + count - 1;
+        auto srcStartIndex = std::distance(b.cbegin(), srcItBegin);
+        changes.push_back({dstStartIndex, dstEndIndex, srcStartIndex});
+    };
+
+    utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+
+    // Verify final result matches
+    EXPECT_EQ(c, b);
+
+    // Verify we had operations
+    EXPECT_FALSE(additions.empty());
+    EXPECT_FALSE(removals.empty());
+    EXPECT_FALSE(changes.empty());
+
+    // Detailed verification of operations
+    // Additions: 0 at start (item {0,0}), and 21,22,23 at end
+    EXPECT_GE(additions.size(), 2u);
+
+    // Removals: items 3, 6, 10, 20 (sortKeys that are missing in b)
+    EXPECT_GE(removals.size(), 2u);
+
+    // Changes: items 2, 4, 5, 9, 15, 17, 19 (sortKeys that exist but values differ)
+    // Should be batched into groups: [2], [4,5], [9], [15], [17], [19]
+    EXPECT_GE(changes.size(), 3u);
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_all_operations_at_boundaries)
+{
+    // Test operations specifically at boundaries (start and end)
+
+    // Scenario 1: Changes at start
+    {
+        std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}};
+        std::vector<Item> b {{1, 11}, {2, 22}, {3, 30}};
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+
+    // Scenario 2: Changes at end
+    {
+        std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}};
+        std::vector<Item> b {{1, 10}, {2, 22}, {3, 33}};
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+
+    // Scenario 3: Additions at start
+    {
+        std::vector<Item> a {{3, 30}, {4, 40}};
+        std::vector<Item> b {{1, 10}, {2, 20}, {3, 30}, {4, 40}};
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+
+    // Scenario 4: Removals from start
+    {
+        std::vector<Item> a {{1, 10}, {2, 20}, {3, 30}, {4, 40}};
+        std::vector<Item> b {{3, 30}, {4, 40}};
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+
+    // Scenario 5: Complex - all operations mixed
+    {
+        std::vector<Item> a {{2, 20}, {3, 30}, {5, 50}, {6, 60}, {8, 80}};
+        std::vector<Item> b {{1, 10}, {2, 22}, {4, 40}, {5, 50}, {7, 70}, {8, 88}, {9, 90}};
+        // Add 1 at start, change 2, remove 3, add 4, keep 5, remove 6, add 7, change 8, add 9 at end
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+}
+
+TEST(utils_cpp, ContainerUtilsTest_difference_sorted_detailed_single_element_operations)
+{
+    // Test with single elements to verify minimal cases work
+
+    // Single element, changed
+    {
+        std::vector<Item> a {{1, 10}};
+        std::vector<Item> b {{1, 11}};
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+
+    // Single element, removed
+    {
+        std::vector<Item> a {{1, 10}};
+        std::vector<Item> b {};
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+
+    // Single element, added
+    {
+        std::vector<Item> a {};
+        std::vector<Item> b {{1, 10}};
+        std::vector<Item> c = a;
+
+        auto adder = [&](auto srcItBegin, auto srcItEnd, int64_t insertionIndex){
+            c.insert(c.begin() + insertionIndex, srcItBegin, srcItEnd);
+        };
+        auto remover = [&](auto minIndex, int64_t maxIndex){
+            c.erase(c.begin() + minIndex, c.begin() + maxIndex + 1);
+        };
+        auto changer = [&](auto srcItBegin, auto srcItEnd, int64_t dstStartIndex){
+            auto dstIt = c.begin() + dstStartIndex;
+            for (auto srcIt = srcItBegin; srcIt != srcItEnd; ++srcIt, ++dstIt) {
+                *dstIt = *srcIt;
+            }
+        };
+
+        utils_cpp::difference_sorted_detailed(a, b, adder, remover, changer, true, Item::compareKeyLess);
+        EXPECT_EQ(c, b);
+    }
+}
+
 // ---- ----
 
 TEST(utils_cpp, ContainerUtilsTest_internal_random)
 {
+    constexpr int Count = 100;
     std::vector<int> randomNumbers1;
     std::vector<int> randomNumbers2;
 
-    for (int i = 0; i < 100; ++i)
+    randomNumbers1.reserve(Count);
+    randomNumbers2.reserve(Count);
+
+    for (int i = 0; i < Count; ++i)
         randomNumbers1.push_back(utils_cpp::Internal::random(10));
 
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < Count; ++i)
         randomNumbers2.push_back(utils_cpp::Internal::random(-10, 10));
 
     const auto first1 = randomNumbers1.front();
