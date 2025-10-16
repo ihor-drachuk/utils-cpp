@@ -102,24 +102,41 @@
  *     Returns `container1 - container2`. Operates on sorted containers only (e.g.: std::set, sorted std::vector).
  *     Sorting function/functor can be provided via template argument or `compare` parameter.
  *
- *   - difference_sorted_detailed(container1, container2, addedHandler, removedHandler, compare = {})
+ *   - difference_sorted_detailed(container1, container2,
+ *                                addedHandler, removedHandler, changedHandler = nullptr,
+ *                                enableCompareEq = false, compareLess = {}, compareEq = {})
  *
- *     Calls `addedHandler` and `removedHandler` so `container1` can be "upgraded" to `container2` via
- *     parameters in handlers. Operates on sorted containers only. Handlers signature:
+ *     Calls `addedHandler`, `removedHandler`, and optionally `changedHandler` so `container1` can be "upgraded"
+ *     to `container2` via parameters in handlers. Operates on sorted containers only.
  *
- *     AddedHandler:   void (auto srcItBegin, auto srcItEnd, auto insertionIndex)
- *     RemovedHandler: void (auto minIndex, auto maxIndex)
+ *     Handlers signature:
+ *       AddedHandler:   void (auto srcItBegin2, auto srcItEnd2, auto dstInsertionIndex)
+ *       RemovedHandler: void (auto dstMinIndex, auto dstMaxIndex)
+ *       ChangedHandler: void (auto srcItBegin2, auto srcItEnd2, auto dstStartIndex)
  *
- *     It's expected from user to copy items from [srcItBegin; srcItEnd) to `container1` at `insertionIndex` position,
- *     and to remove items from `container1` within [minIndex; maxIndex] range.
+ *     IMPORTANT: Handlers must NOT modify `container1` or `container2` during the comparison process.
+ *     The function holds iterators to both containers, and any modification would invalidate them.
+ *     All modifications should be applied to a separate working copy, which can then replace `container1`.
+ *
+ *     When `enableCompareEq` is true and `changedHandler` is provided, the function detects when elements
+ *     are sort-equal (according to compareLess) but not truly equal (according to compareEq) and calls
+ *     the changedHandler for such elements.
+ *
+ *     It's expected from user to apply operations to a working copy: copy items from [srcItBegin2; srcItEnd2)
+ *     to `dstInsertionIndex` position, remove items within [dstMinIndex; dstMaxIndex] range, and update changed
+ *     items at `dstStartIndex` onwards using data from [srcItBegin2; srcItEnd2).
  *
  *     To be more precise:
  *         AddedHandler:   void (Container2::iterator         srcItBegin2,
  *                               Container2::iterator         srcItEnd2,
- *                               Container2::difference_type  insertionIndex)
+ *                               Container2::difference_type  dstInsertionIndex)
  *
- *         RemovedHandler: void (Container2::difference_type  minIndex,
- *                               Container2::difference_type  maxIndex)
+ *         RemovedHandler: void (Container2::difference_type  dstMinIndex,
+ *                               Container2::difference_type  dstMaxIndex)
+ *
+ *         ChangedHandler: void (Container2::iterator         srcItBegin2,
+ *                               Container2::iterator         srcItEnd2,
+ *                               Container2::difference_type  dstStartIndex)
  *
  *
  *   --- SELECTION ---
@@ -1395,15 +1412,21 @@ auto difference_sorted(const Container<CArgs...>& container1, const AnotherConta
     return result;
 }
 
-template<typename Compare = std::less<>,
-         typename AddedHandler, typename RemovedHandler,
+template<typename CompareLess = std::less<>,
+         typename CompareEq = std::equal_to<>,
+         typename AddedHandler, typename RemovedHandler, typename ChangedHandler = std::nullptr_t,
          typename Container1, typename Container2>
-void difference_sorted_detailed(const Container1& container1, const Container2& container2,
-                                const AddedHandler& addedHandler, const RemovedHandler& removedHandler,
-                                const Compare& compare = {})
+void difference_sorted_detailed(const Container1& container1,
+                                const Container2& container2,
+                                const AddedHandler& addedHandler,
+                                const RemovedHandler& removedHandler,
+                                const ChangedHandler& changedHandler = nullptr,
+                                bool enableCompareEq = false,
+                                const CompareLess& compareLess = {},
+                                const CompareEq& compareEq = {})
 {
-    assert(std::is_sorted(std::cbegin(container1), std::cend(container1), compare));
-    assert(std::is_sorted(std::cbegin(container2), std::cend(container2), compare));
+    assert(std::is_sorted(std::cbegin(container1), std::cend(container1), compareLess));
+    assert(std::is_sorted(std::cbegin(container2), std::cend(container2), compareLess));
 
     using DiffType = typename Container2::difference_type;
 
@@ -1419,10 +1442,10 @@ void difference_sorted_detailed(const Container1& container1, const Container2& 
         if (it1 == end1) {
             // All remaining elements in container2 are additions
             if (it2 != end2) {
-                DiffType insertionIndex = index1 + offset;
+                DiffType dstInsertionIndex = index1 + offset;
                 auto itemsStart = it2;
                 DiffType count = std::distance(it2, end2);
-                addedHandler(itemsStart, end2, insertionIndex);
+                addedHandler(itemsStart, end2, dstInsertionIndex);
                 offset += count;
             }
             break;
@@ -1431,46 +1454,86 @@ void difference_sorted_detailed(const Container1& container1, const Container2& 
         if (it2 == end2) {
             // All remaining elements in container1 are removals
             if (it1 != end1) {
-                DiffType minIndex = index1 + offset;
+                DiffType dstMinIndex = index1 + offset;
                 DiffType count = std::distance(it1, end1);
-                DiffType maxIndex = minIndex + count - 1;
-                removedHandler(minIndex, maxIndex);
+                DiffType dstMaxIndex = dstMinIndex + count - 1;
+                removedHandler(dstMinIndex, dstMaxIndex);
                 offset -= count;
             }
             break;
         }
 
-        if (!compare(*it1, *it2) && !compare(*it2, *it1)) {
-            // Elements are equal
+        if (!compareLess(*it1, *it2) && !compareLess(*it2, *it1)) {
+            // Elements are sort-equal
+            if constexpr (!std::is_same_v<ChangedHandler, std::nullptr_t>) {
+                if (enableCompareEq && !compareEq(*it1, *it2)) {
+                    // Start of a changed sequence
+                    DiffType dstStartIndex = index1 + offset;
+                    auto srcItBegin = it2;
+                    DiffType changedCount = 1;
+
+                    auto tempIt1 = it1;
+                    auto tempIt2 = it2;
+                    auto tempIndex1 = index1;
+
+                    ++tempIt1;
+                    ++tempIt2;
+                    ++tempIndex1;
+
+                    // Find consecutive changed elements (must be sort-equal but not truly equal)
+                    while (tempIt1 != end1 && tempIt2 != end2 &&
+                           !compareLess(*tempIt1, *tempIt2) && !compareLess(*tempIt2, *tempIt1) &&
+                           !compareEq(*tempIt1, *tempIt2)) {
+                        ++changedCount;
+                        ++tempIt1;
+                        ++tempIt2;
+                        ++tempIndex1;
+                    }
+
+                    // Call handler for the entire batch
+                    auto srcItEnd = tempIt2;
+                    changedHandler(srcItBegin, srcItEnd, dstStartIndex);
+
+                    // Update iterators to skip the batch
+                    for (DiffType i = 0; i < changedCount; ++i) {
+                        ++it1;
+                        ++it2;
+                        ++index1;
+                    }
+                    continue;  // Continue to next iteration of main loop
+                }
+            } else {
+                assert(!enableCompareEq && "ChangedHandler must be provided if enableCompareEq is true.");
+            }
             ++it1;
             ++it2;
             ++index1;
-        } else if (compare(*it1, *it2)) {
+        } else if (compareLess(*it1, *it2)) {
             // Element is in container1 but not in container2 (removal)
-            DiffType minIndex = index1 + offset;
+            DiffType dstMinIndex = index1 + offset;
             DiffType removalCount = 0;
 
-            while (it1 != end1 && (it2 == end2 || compare(*it1, *it2))) {
+            while (it1 != end1 && (it2 == end2 || compareLess(*it1, *it2))) {
                 ++it1;
                 ++index1;
                 ++removalCount;
             }
 
-            DiffType maxIndex = minIndex + removalCount - 1;
-            removedHandler(minIndex, maxIndex);
+            DiffType dstMaxIndex = dstMinIndex + removalCount - 1;
+            removedHandler(dstMinIndex, dstMaxIndex);
             offset -= removalCount;
         } else {
             // Element is in container2 but not in container1 (addition)
-            DiffType insertionIndex = index1 + offset;
+            DiffType dstInsertionIndex = index1 + offset;
             auto itemsStart = it2;
             DiffType additionCount = 0;
 
-            while (it2 != end2 && (it1 == end1 || compare(*it2, *it1))) {
+            while (it2 != end2 && (it1 == end1 || compareLess(*it2, *it1))) {
                 ++it2;
                 ++additionCount;
             }
 
-            addedHandler(itemsStart, it2, insertionIndex);
+            addedHandler(itemsStart, it2, dstInsertionIndex);
             offset += additionCount;
         }
     }
