@@ -55,5 +55,6 @@ template<typename T> auto s16(T value) { return utils_cpp_internal::arbitraryCas
 template<typename T> auto s32(T value) { return utils_cpp_internal::arbitraryCast<int32_t>(value); }
 template<typename T> auto s64(T value) { return utils_cpp_internal::arbitraryCast<int64_t>(value); }
 template<typename T> auto toSizeT(T value) { return utils_cpp_internal::arbitraryCast<size_t>(value); }
+template<typename T> auto z(T value) { return utils_cpp_internal::arbitraryCast<size_t>(value); }
 
 template<typename T> auto c(T value) { return utils_cpp_internal::SafeIntegerComparer(value); }
