@@ -273,7 +273,8 @@ size_t StdinListener::readNonBlocking(char* buffer, size_t sz)
     const auto status = ReadFile(GetStdHandle(STD_INPUT_HANDLE), buffer, sz, &bytesRead, nullptr);
     return status ? bytesRead : 0;
 #else
-    return read(STDIN_FILENO, buffer, sz);
+    const auto result = read(STDIN_FILENO, buffer, sz);
+    return (result > 0) ? static_cast<size_t>(result) : 0;
 #endif // UTILS_CPP_OS_WINDOWS
 }
 

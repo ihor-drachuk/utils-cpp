@@ -53,7 +53,7 @@ private:
         for (size_t i = 0; i < n; i++)
             m_functor();
 
-        ++m_position;
+        m_position += n;
     }
 
 private:
