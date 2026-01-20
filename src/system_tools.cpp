@@ -41,12 +41,13 @@ std::optional<bool> has_admin_rights()
         return {};
 
     // Check if the token of the calling process is a member of the Administrators group
-    if (!CheckTokenMembership(nullptr, adminGroup, &isAdmin))
+    if (!CheckTokenMembership(nullptr, adminGroup, &isAdmin)) {
+        FreeSid(adminGroup);
         return {};
+    }
 
     // Clean up
-    if (adminGroup)
-        FreeSid(adminGroup);
+    FreeSid(adminGroup);
 
     return isAdmin == TRUE;
 
