@@ -3,6 +3,7 @@
  * Contact:  ihor-drachuk-libs@pm.me  */
 
 #pragma once
+#include <algorithm>
 #include <chrono>
 #include <numeric>
 #include <type_traits>

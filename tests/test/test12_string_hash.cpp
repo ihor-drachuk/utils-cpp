@@ -21,6 +21,7 @@ TEST(utils_cpp, string_hash_test)
         switch (string_hash(x)) {
             case string_hash("Test string"): triggers1++; break;
             case string_hash("str"):         triggers2++; break;
+            default: break;
         }
     }
 

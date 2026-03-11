@@ -117,13 +117,13 @@ void StdinListener::echo(const char* buffer, size_t size)
             size_t length = static_cast<size_t>(it - begin);
 
             if (*it == '\r') {
-                fwrite(begin, 1, length + 1, stdout);
-                fputc('\n', stdout);
+                (void)fwrite(begin, 1, length + 1, stdout);
+                (void)fputc('\n', stdout);
 
             } else {
                 assert(*it == 0x08 || *it == 0x7F);
-                fwrite(begin, 1, length, stdout);
-                fwrite("\b \b", 1, 3, stdout);
+                (void)fwrite(begin, 1, length, stdout);
+                (void)fwrite("\b \b", 1, 3, stdout);
             }
 
             begin = it + 1;
@@ -131,8 +131,8 @@ void StdinListener::echo(const char* buffer, size_t size)
         }
 
         size_t length = static_cast<size_t>(end - begin);
-        fwrite(begin, 1, length, stdout);
-        fflush(stdout);
+        (void)fwrite(begin, 1, length, stdout);
+        (void)fflush(stdout);
     }
 }
 
