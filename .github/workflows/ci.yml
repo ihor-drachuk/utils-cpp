@@ -12,19 +12,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [linux]
         compiler: [gcc, clang]
         test_libs: [tl_preinstalled, tl_missing]
-        qt: [qt_no]
         build_type: [Debug, Release]
 
     runs-on: ubuntu-latest
 
     container:
-      image: ihordrachuk/id-build-env:${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.test_libs }}-${{ matrix.qt }}-${{ matrix.arch || 'default' }}
+      image: ihordrachuk/id-build-env:linux-${{ matrix.compiler }}-${{ matrix.test_libs }}-qt_no-default
       options: --workdir ${{ github.workspace }}
 
-    if: "!contains(github.event.head_commit.message, 'Skip build')"
+    if: "!contains(github.event.head_commit.message, 'CI skip') && !contains(github.event.head_commit.message, 'Skip CI')"
     timeout-minutes: 30
 
     steps:
@@ -65,18 +63,14 @@ jobs:
       fail-fast: false
       matrix:
         compiler_arch: [x64]
-        qt_arch: [win64_msvc2019_64]
-        qt: [qt_no]
         build_type: [Debug, Release]
         include:
           - compiler_arch: Win32
-            qt_arch: win32_msvc2019
-            qt: qt_no
             build_type: Debug
 
     runs-on: windows-latest
 
-    if: "!contains(github.event.head_commit.message, 'Skip build')"
+    if: "!contains(github.event.head_commit.message, 'CI skip') && !contains(github.event.head_commit.message, 'Skip CI')"
     timeout-minutes: 30
 
     steps:
@@ -84,24 +78,6 @@ jobs:
         shell: bash
         run: |
           echo "CORES=$NUMBER_OF_PROCESSORS" >> $GITHUB_ENV
-
-      - name: Install Qt
-        if: ${{ matrix.qt != 'qt_no' }}
-        uses: jurplel/install-qt-action@v3
-        with:
-          version: ${{ matrix.qt }}
-          host: windows
-          target: desktop
-          arch: ${{ matrix.qt_arch }}
-          dir: ${{github.workspace}}/qt
-          cache: true
-          setup-python: false
-
-      - name: "Add Qt to PATH"
-        if: ${{ matrix.qt != 'qt_no' }}
-        shell: bash
-        run: |
-          echo "${{github.workspace}}/qt" >> $GITHUB_PATH
 
       - uses: actions/checkout@v4
         with:
@@ -122,12 +98,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        qt: [qt_no]
         build_type: [Debug, Release]
 
     runs-on: macos-latest
 
-    if: "!contains(github.event.head_commit.message, 'Skip build')"
+    if: "!contains(github.event.head_commit.message, 'CI skip') && !contains(github.event.head_commit.message, 'Skip CI')"
     timeout-minutes: 30
 
     steps:
@@ -135,24 +110,6 @@ jobs:
         shell: bash
         run: |
           echo "CORES=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
-
-      - name: Install Qt
-        if: ${{ matrix.qt != 'qt_no' }}
-        uses: jurplel/install-qt-action@v3
-        with:
-          version: ${{ matrix.qt }}
-          host: mac
-          target: desktop
-          arch: clang_64
-          dir: ${{github.workspace}}/qt
-          cache: true
-          setup-python: false
-
-      - name: "Add Qt to PATH"
-        if: ${{ matrix.qt != 'qt_no' }}
-        shell: bash
-        run: |
-          echo "${{github.workspace}}/qt" >> $GITHUB_PATH
 
       - uses: actions/checkout@v4
         with:
@@ -170,7 +127,7 @@ jobs:
 
 
   CodeChecker:
-    if: "!contains(github.event.head_commit.message, 'Skip SA')"
+    if: "!contains(github.event.head_commit.message, 'CI skip') && !contains(github.event.head_commit.message, 'Skip CI')"
     runs-on: [ubuntu-22.04]
 
     container:
