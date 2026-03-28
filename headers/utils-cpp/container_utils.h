@@ -1764,9 +1764,14 @@ auto random_weighted_items(const Container<CArgs...>& container,
     auto inserter = Internal::getInserter(result);
 
     if (container.size() < smallContainerThreshold) {
-        const auto wSum = static_cast<size_t>(std::accumulate(container.begin(), container.end(), 0, [&](const auto& sum, const auto& x) { return sum + pred(x); }));
+        uint64_t wSum {};
+        for (const auto& x : container) {
+            const auto w = static_cast<uint64_t>(pred(x));
+            assert(wSum <= std::numeric_limits<uint64_t>::max() - w);
+            wSum += w;
+        }
 
-        std::uniform_int_distribution<size_t> dis(0, wSum - 1);
+        std::uniform_int_distribution<uint64_t> dis(0, wSum - 1);
 
         while (count) {
             const auto randomWeight = dis(gen);
@@ -1791,11 +1796,13 @@ auto random_weighted_items(const Container<CArgs...>& container,
 
         uint64_t sum {};
         for (const auto& x : container) {
-            sum += static_cast<uint64_t>(pred(x));
+            const auto w = static_cast<uint64_t>(pred(x));
+            assert(sum <= std::numeric_limits<uint64_t>::max() - w);
+            sum += w;
             cumulativeWeights.push_back(sum);
         }
 
-        std::uniform_int_distribution<size_t> dis(0, sum - 1);
+        std::uniform_int_distribution<uint64_t> dis(0, sum - 1);
 
         while (count) {
             const auto randomWeight = dis(gen);
