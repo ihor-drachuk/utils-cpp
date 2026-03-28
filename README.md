@@ -1,10 +1,10 @@
 <p align="center">
   <h1 align="center">utils-cpp</h1>
   <p align="center">
-    <strong>Modern C++ Utility Library</strong>
+    <strong>Handy C++17 utilities and wrappers</strong>
   </p>
   <p align="center">
-    Type-safe utilities for everyday C++ development
+    Container helpers, safe integer casts, platform detection and more
   </p>
 </p>
 
@@ -17,13 +17,16 @@
 
 ---
 
+A grab-bag of small C++17 utilities that fill gaps in the standard library — optional-like container search results, safe integer casts, lazy initialization, XOR helpers, VM detection and other bits accumulated over the years.
+
+---
+
 ## Key Features
 
-- **Modern C++17** — Leverages latest language features and best practices
-- **Cross-platform** — Tested on Linux (GCC, Clang), Windows (MSVC), and macOS
-- **Type-safe** — Compile-time checks with templates and SFINAE
-- **Qt-compatible** — Special support for Qt containers
-- **Well-tested** — Comprehensive test suite with Google Test
+- **C++17** — some utilities overlap with C++20/23 features (ranges, `std::cmp_less`, ...) and can serve as lighter-weight alternatives for older compilers
+- **Cross-platform** — tested on Linux (GCC, Clang), Windows (MSVC), and macOS
+- **Qt-compatible** — optional support for Qt containers (QSet, QMap, etc.)
+- **Tested** — comes with a Google Test suite
 
 ---
 
@@ -41,10 +44,7 @@
 ## Requirements
 
 - **CMake** 3.16+
-- **C++17** compatible compiler:
-  - GCC 7+
-  - Clang 5+
-  - MSVC 2017+
+- **C++17** compatible compiler (MSVC, GCC, Clang)
 
 ---
 
@@ -80,9 +80,7 @@ target_link_libraries(YourProject PRIVATE utils-cpp)
 
 ## Quick Start
 
-### Example 1: Elegant Container Search
-
-Forget `iterator == container.end()` checks. Use expressive search results:
+### Container search
 
 ```cpp
 #include <utils-cpp/container_utils.h>
@@ -90,19 +88,13 @@ Forget `iterator == container.end()` checks. Use expressive search results:
 
 std::vector<int> data = {10, 20, 30, 40, 50};
 
-// Clean, readable code
-if (auto result = UtilsCpp::find_if(data, [](int x) { return x > 25; })) {
-    std::cout << "Found: " << *result << " at index " << result.index() << std::endl;
-    // Output: Found: 30 at index 2
-}
-
-// Works with values too
-if (auto found = UtilsCpp::find(data, 40)) {
-    std::cout << "Value exists at index " << found.index() << std::endl;
+if (auto result = utils_cpp::find_if(data, [](int x) { return x > 25; })) {
+    std::cout << "Found: " << *result << " at index " << result.index() << "\n";
+    // Found: 30 at index 2
 }
 ```
 
-### Example 2: Filter and Transform in One Pass
+### Filter + transform
 
 ```cpp
 #include <utils-cpp/container_utils.h>
@@ -111,10 +103,9 @@ if (auto found = UtilsCpp::find(data, 40)) {
 
 std::vector<int> numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-// Filter even numbers and convert to strings - single pass
-auto result = UtilsCpp::copy_if_transform(
+auto result = utils_cpp::copy_if_transform(
     numbers,
-    [](int x) { return x % 2 == 0; },              // predicate: keep evens
+    [](int x) { return x % 2 == 0; },                    // predicate: keep evens
     [](int x) { return "Value: " + std::to_string(x); }  // transform to string
 );
 
@@ -136,12 +127,18 @@ auto result = UtilsCpp::copy_if_transform(
 | `index_of`, `index_of_if` | Index lookup |
 | `all_of`, `any_of`, `none_of` | Quantifier checks (value and predicate variants) |
 | `copy_if`, `transform`, `copy_if_transform` | Filtering and transformation |
+| `count`, `count_if` | Counting |
+| `accumulate`, `reduce`, `transform_reduce` | Aggregation |
+| `erase_if`, `erase_all`, `erase_all_vec`, `erase_one` | Element removal |
+| `difference_sorted`, `difference_sorted_detailed` | Sorted container diff |
+| `random_items`, `random_weighted_items`, `*_unique` | Random / weighted random selection |
+| `generate`, `generate_rnd` | Container generation |
 
 ### Meta-programming & Type Traits
 
 | Header | Description |
 |--------|-------------|
-| `function_traits.h` | Extract return type, argument types, arity from callables |
+| `function_traits.h` | Extract return type, argument types, arity from callables; `Functor` wrapper |
 | `checkmethod.h` | Compile-time method detection (`CREATE_CHECK_METHOD`) |
 | `comparison_traits.h` | Detect comparison operators (`is_comparable_eq`, etc.) |
 | `tuple_utils.h` | Tuple manipulation, iteration, type checks |
@@ -151,7 +148,7 @@ auto result = UtilsCpp::copy_if_transform(
 
 | Header | Description |
 |--------|-------------|
-| `copy_move.h` | `NO_COPY`, `NO_MOVE`, `NO_COPY_MOVE`, `DEFAULT_*` macros |
+| `default_ctor_ops.h` | `NO_COPY`, `NO_MOVE`, `NO_COPY_MOVE`, `DEFAULT_*`, `DEFAULT_OPS_EQ_NEQ` macros |
 | `declareptr.h` | Smart pointer typedefs (`DECLARE_PTR`) |
 | `pimpl.h` | PIMPL idiom helper (`DECLARE_PIMPL`) |
 | `singleton.h` | `Singleton<T>`, `SingletonGlobal<T>` |
@@ -165,13 +162,13 @@ auto result = UtilsCpp::copy_if_transform(
 | `struct_ops.h` | Generate `==`, `!=`, `<`, `>`, `<=`, `>=` via `tie()` |
 | `struct_ops2.h` | Float-aware comparisons with epsilon |
 | `struct_ops3.h` | Multi-inheritance comparison support |
-| `variant_eq_comparison.h` | Compare `std::variant` with plain types |
+| `variant_tools.h` | Compare `std::variant` with plain types; `get_if` helper |
 
 ### Object Lifecycle
 
 | Header | Description |
 |--------|-------------|
-| `lazyinit.h` | `LazyInit<T>` — deferred object creation |
+| `lazy_init.h` | `lazy_init<T>`, `lazy_init_custom<T>` — deferred construction |
 | `objects_pool.h` | Thread-safe object pooling |
 | `sios.h` | Static Initialization Order Solution |
 
@@ -181,6 +178,18 @@ auto result = UtilsCpp::copy_if_transform(
 |--------|-------------|
 | `circularbuffer.h` | Fixed-size FIFO circular buffer |
 | `middle_iterator.h` | Iterator traversing from center outward |
+| `functor_iterator.h` | Wrap a callable as an input iterator |
+| `value_or.h` | Chained optional access with fallbacks |
+
+### System & Platform
+
+| Header | Description |
+|--------|-------------|
+| `system_tools.h` | Device name, chassis type, admin rights detection |
+| `vm_detector.h` | Virtual machine / hypervisor detection |
+| `cpuid.h` | CPUID instruction wrapper (x86) |
+| `stdin_listener.h` | Non-blocking stdin reader with echo/backspace support |
+| `stdin_listener_native.h` | Line-based stdin listener |
 
 ### Miscellaneous
 
@@ -189,12 +198,17 @@ auto result = UtilsCpp::copy_if_transform(
 | `threadid.h` | Unique thread identification |
 | `string_hash.h` | Compile-time FNV-1a string hashing |
 | `once.h` | Execute code once (`ONCE`, `ONCE_NAMED`) |
-| `as_const.h` | Convert to const reference |
-| `make_shared_from.h` | Create smart pointers from existing objects |
+| `make_shared_ptr.h` | `make_shared_from`, `make_unique_from`, smart pointer wrappers |
 | `safe_dynamic_cast.h` | Asserted dynamic casting |
 | `warnings.h` | Cross-compiler warning management |
 | `attributes.h` | Compiler-specific attributes |
-| `macros.h` | `STRINGIFY`, `TO_STRING` |
+| `safe_integers.h` | Safe integer casts and cross-type comparison |
+| `xor.h` | Byte and buffer XOR operations |
+| `algorithms.h` | Variadic `min`, `max`, `gcd`, `lcm` |
+| `chrono_utils.h` | `ScopedTimer` for measuring elapsed time |
+| `data_to_string.h` | Binary data to readable string |
+| `gtest_printers.h` | Google Test pretty-printers for `std::chrono` types |
+| `macros.h` | `STRINGIFY`, `TO_STRING`, conditional action/return macros |
 
 ---
 
@@ -207,6 +221,7 @@ auto result = UtilsCpp::copy_if_transform(
 | `UTILS_CPP_ENABLE_TESTS` | `OFF` | Build unit tests |
 | `UTILS_CPP_ENABLE_BENCHMARK` | `OFF` | Build benchmarks |
 | `UTILS_CPP_GTEST_SEARCH_MODE` | `Auto` | GTest detection: `Auto`, `Force`, `Skip` |
+| `UTILS_CPP_TBB` | `Auto` | TBB linking (parallel execution policies): `Auto`, `ON`, `OFF` |
 
 ### Commands
 
