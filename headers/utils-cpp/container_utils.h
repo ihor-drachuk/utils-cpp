@@ -236,8 +236,8 @@ public:
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT* operator-> () { return &Base::value(); }
     template<bool rw = rw_, typename std::enable_if_t<rw>* = nullptr> UT& value() { return Base::value(); }
 
-    const UT& operator* () const { return Base::value_or_assert(); }
-    const UT* operator-> () const { return &Base::value_or_assert(); }
+    const UT& operator* () const { return Base::value(); }
+    const UT* operator-> () const { return &Base::value(); }
     const UT& value() const { return Base::value(); }
 };
 
