@@ -66,16 +66,6 @@ auto castSignness(T value)
     }
 }
 
-template<typename R, typename T>
-R arbitraryCast(T value)
-{
-    checkIntegralType<T>();
-    checkIntegralType<R>();
-    assert(value >= std::numeric_limits<R>::min());
-    assert(value <= std::numeric_limits<R>::max());
-    return static_cast<R>(value);
-}
-
 template<typename A, typename B>
 int compareIntegers(A lhs, B rhs)
 {
@@ -108,6 +98,16 @@ int compareIntegers(A lhs, B rhs)
         return static_cast<Common>(lhs) < static_cast<Common>(rhs) ? -1
              : static_cast<Common>(lhs) > static_cast<Common>(rhs) ? 1 : 0;
     }
+}
+
+template<typename R, typename T>
+R arbitraryCast(T value)
+{
+    checkIntegralType<T>();
+    checkIntegralType<R>();
+    assert(compareIntegers(value, std::numeric_limits<R>::min()) >= 0);
+    assert(compareIntegers(value, std::numeric_limits<R>::max()) <= 0);
+    return static_cast<R>(value);
 }
 
 template<typename T>

@@ -113,3 +113,78 @@ TEST(utils_cpp, safe_integers_cross_size_comparison)
     ASSERT_LT(c(int8_t(0)),   uint64_t(1));
     ASSERT_GT(c(uint64_t(1)), int8_t(0));
 }
+
+TEST(utils_cpp, safe_integers_u_s_ss)
+{
+    // u(): signed -> unsigned (same size)
+    ASSERT_EQ(u(int8_t(0)), uint8_t(0));
+    ASSERT_EQ(u(int8_t(127)), uint8_t(127));
+    ASSERT_EQ(u(int32_t(42)), uint32_t(42));
+    ASSERT_EQ(u(int64_t(1000)), uint64_t(1000));
+
+    // u(): already unsigned -> passthrough
+    ASSERT_EQ(u(uint16_t(500)), uint16_t(500));
+
+    // s(): unsigned -> signed (same size)
+    ASSERT_EQ(s(uint8_t(0)), int8_t(0));
+    ASSERT_EQ(s(uint8_t(127)), int8_t(127));
+    ASSERT_EQ(s(uint32_t(42)), int32_t(42));
+
+    // s(): already signed -> passthrough
+    ASSERT_EQ(s(int16_t(-1)), int16_t(-1));
+
+    // ss(): unsigned -> signed of extended size (no data loss)
+    ASSERT_EQ(ss(uint8_t(255)), int16_t(255));
+    ASSERT_EQ(ss(uint16_t(65535)), int32_t(65535));
+    ASSERT_EQ(ss(uint32_t(0xFFFFFFFF)), int64_t(0xFFFFFFFF));
+
+    // ss(): already signed -> passthrough
+    ASSERT_EQ(ss(int8_t(-1)), int8_t(-1));
+}
+
+TEST(utils_cpp, safe_integers_arbitrary_cast)
+{
+    // Same type
+    ASSERT_EQ(u8(uint8_t(42)), uint8_t(42));
+    ASSERT_EQ(s32(int32_t(-1)), int32_t(-1));
+
+    // Narrowing that fits
+    ASSERT_EQ(u8(uint64_t(200)), uint8_t(200));
+    ASSERT_EQ(u8(uint32_t(0)), uint8_t(0));
+    ASSERT_EQ(u8(uint16_t(255)), uint8_t(255));
+    ASSERT_EQ(s8(int64_t(100)), int8_t(100));
+    ASSERT_EQ(s8(int64_t(-128)), int8_t(-128));
+    ASSERT_EQ(s8(int32_t(127)), int8_t(127));
+
+    // Cross-signedness that fits (the bug case: unsigned -> signed narrow)
+    ASSERT_EQ(s8(uint64_t(5)), int8_t(5));
+    ASSERT_EQ(s8(uint64_t(127)), int8_t(127));
+    ASSERT_EQ(s8(uint32_t(0)), int8_t(0));
+    ASSERT_EQ(s16(uint64_t(32767)), int16_t(32767));
+
+    // Signed -> unsigned narrow that fits
+    ASSERT_EQ(u8(int64_t(5)), uint8_t(5));
+    ASSERT_EQ(u8(int32_t(255)), uint8_t(255));
+    ASSERT_EQ(u8(int16_t(0)), uint8_t(0));
+
+    // Widening
+    ASSERT_EQ(u64(uint8_t(42)), uint64_t(42));
+    ASSERT_EQ(s64(int8_t(-1)), int64_t(-1));
+    ASSERT_EQ(u32(uint8_t(255)), uint32_t(255));
+
+    // toSizeT / z
+    ASSERT_EQ(toSizeT(int32_t(42)), size_t(42));
+    ASSERT_EQ(z(uint16_t(1000)), size_t(1000));
+}
+
+TEST(utils_cpp, safe_integers_underlying)
+{
+    enum class Color : uint8_t { Red = 1, Green = 2, Blue = 3 };
+    enum class BigEnum : int32_t { Neg = -10, Zero = 0, Pos = 100 };
+
+    ASSERT_EQ(underlying(Color::Red), uint8_t(1));
+    ASSERT_EQ(underlying(Color::Blue), uint8_t(3));
+    ASSERT_EQ(underlying(BigEnum::Neg), int32_t(-10));
+    ASSERT_EQ(underlying(BigEnum::Zero), int32_t(0));
+    ASSERT_EQ(underlying(BigEnum::Pos), int32_t(100));
+}
