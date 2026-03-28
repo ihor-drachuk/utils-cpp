@@ -9,8 +9,19 @@
 
 namespace utils_cpp {
 
+namespace xor_detail {
+template<typename T>
+constexpr bool is_byte_type_v = std::is_same_v<T, char>
+                             || std::is_same_v<T, unsigned char>
+                             || std::is_same_v<T, signed char>
+                             || std::is_same_v<T, uint8_t>
+                             || std::is_same_v<T, int8_t>
+                             || std::is_same_v<T, std::byte>;
+} // namespace xor_detail
+
 template<typename A, typename B,
-         typename = std::enable_if_t<sizeof(A) == 1 && sizeof(B) == 1>>
+         typename = std::enable_if_t<xor_detail::is_byte_type_v<A> &&
+                                     xor_detail::is_byte_type_v<B>>>
 void xorByte(A& x, B y)
 {
     reinterpret_cast<uint8_t&>(x) ^= reinterpret_cast<uint8_t&>(y);
