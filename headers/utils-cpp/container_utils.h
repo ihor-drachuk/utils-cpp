@@ -1832,8 +1832,6 @@ auto random_weighted_items_unique(const Container<CArgs...>& container,
             return weightPredicate;
     }();
 
-    using PredType = decltype(pred(std::declval<ElementType>()));
-
     if (!count)
         return ResultType();
 
@@ -1869,7 +1867,7 @@ auto random_weighted_items_unique(const Container<CArgs...>& container,
         *inserter++ = keys[i].second;
 
     // Sort. Actually not necessary, but it's nice to have the result sorted.
-    std::sort(std::begin(result), std::end(result), std::greater<PredType>());
+    std::sort(std::begin(result), std::end(result), std::greater<>());
 
     return result;
 }
