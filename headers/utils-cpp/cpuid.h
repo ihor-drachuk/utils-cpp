@@ -2,6 +2,7 @@
  * Source:   https://github.com/ihor-drachuk/utils-cpp
  * Contact:  ihor-drachuk-libs@pm.me  */
 
+#pragma once
 #include <array>
 #include <cstdint>
 #include <string>
