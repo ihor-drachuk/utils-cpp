@@ -82,16 +82,32 @@ int compareIntegers(A lhs, B rhs)
     checkIntegralType<A>();
     checkIntegralType<B>();
 
-    // codechecker_intentional [clang-diagnostic-sign-compare]
-    if (std::numeric_limits<A>::max() < rhs)
-        return -1;
+    using UA = typename UnwrapEnum<A>::Type;
+    using UB = typename UnwrapEnum<B>::Type;
 
-    // codechecker_intentional [clang-diagnostic-sign-compare]
-    if (std::numeric_limits<B>::max() < lhs)
-        return 1;
+    constexpr bool a_signed = std::is_signed_v<UA>;
+    constexpr bool b_signed = std::is_signed_v<UB>;
 
-    // codechecker_intentional [clang-diagnostic-sign-compare]
-    return lhs < rhs ? -1 : lhs > rhs ? 1 : 0;
+    if constexpr (a_signed == b_signed) {
+        // Same signedness: implicit promotion to the larger type is safe
+        return lhs < rhs ? -1 : lhs > rhs ? 1 : 0;
+    } else if constexpr (a_signed) {
+        // lhs is signed, rhs is unsigned: negative signed is always less
+        if (lhs < 0) return -1;
+        // lhs >= 0, compare in common unsigned type
+        using Common = std::conditional_t<(sizeof(UA) > sizeof(UB)),
+                                          std::make_unsigned_t<UA>, UB>;
+        return static_cast<Common>(lhs) < static_cast<Common>(rhs) ? -1
+             : static_cast<Common>(lhs) > static_cast<Common>(rhs) ? 1 : 0;
+    } else {
+        // lhs is unsigned, rhs is signed: negative signed is always less
+        if (rhs < 0) return 1;
+        // rhs >= 0, compare in common unsigned type
+        using Common = std::conditional_t<(sizeof(UB) > sizeof(UA)),
+                                          std::make_unsigned_t<UB>, UA>;
+        return static_cast<Common>(lhs) < static_cast<Common>(rhs) ? -1
+             : static_cast<Common>(lhs) > static_cast<Common>(rhs) ? 1 : 0;
+    }
 }
 
 template<typename T>
