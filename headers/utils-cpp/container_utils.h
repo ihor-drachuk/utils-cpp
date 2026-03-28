@@ -330,13 +330,11 @@ public:
     using pointer = void;
     using reference = void;
 
-    explicit SetInserter(Container& set) : m_set(set) {}
-    SetInserter(const SetInserter& other) : m_set(other.m_set) {}
-    SetInserter& operator=(const SetInserter& other) { m_set = other.m_set; return *this; }
+    explicit SetInserter(Container& set) : m_set(&set) {}
 
     SetInserter& operator=(const T& value)
     {
-        m_set.insert(value);
+        m_set->insert(value);
         return *this;
     }
 
@@ -345,7 +343,7 @@ public:
     SetInserter& operator++(int) { return *this; }
 
 private:
-    Container& m_set;
+    Container* m_set {};
 };
 
 template <template <typename...> class C, typename T, typename... Args>
