@@ -269,8 +269,14 @@ void StdinListener::resetBlockingMode()
 size_t StdinListener::readNonBlocking(char* buffer, size_t sz)
 {
 #ifdef UTILS_CPP_OS_WINDOWS
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+
+    // Wait with timeout so we can check stopFlag periodically
+    if (WaitForSingleObject(hStdin, 30) != WAIT_OBJECT_0)
+        return 0;
+
     DWORD bytesRead {};
-    const auto status = ReadFile(GetStdHandle(STD_INPUT_HANDLE), buffer, sz, &bytesRead, nullptr);
+    const auto status = ReadFile(hStdin, buffer, static_cast<DWORD>(sz), &bytesRead, nullptr);
     return status ? bytesRead : 0;
 #else
     const auto result = read(STDIN_FILENO, buffer, sz);

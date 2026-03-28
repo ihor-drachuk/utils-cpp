@@ -19,6 +19,8 @@ public:
 
 private:
     void readLoop();
+    static bool waitForData(int timeoutMs);
+    static int readAvailable(char* buffer, size_t sz);
 
 private:
     DECLARE_PIMPL

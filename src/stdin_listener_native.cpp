@@ -12,13 +12,14 @@
 
 #include <atomic>
 #include <cassert>
-#include <chrono>
-#include <iostream>
+#include <string>
 #include <thread>
+#include <vector>
 
 #ifdef UTILS_CPP_OS_WINDOWS
 #include <Windows.h>
 #else
+#include <poll.h>
 #include <unistd.h>
 #endif // UTILS_CPP_OS_WINDOWS
 
@@ -30,6 +31,8 @@ struct StdinListenerNative::impl_t
 
     std::thread thread;
     std::atomic<bool> running{true};
+
+    std::string lineBuffer;
 };
 
 StdinListenerNative::StdinListenerNative(const NewLineHandler& lineCallback)
@@ -45,37 +48,64 @@ StdinListenerNative::~StdinListenerNative()
 {
     impl().running = false;
 
-#ifdef UTILS_CPP_OS_WINDOWS
-    // On Windows we can cancel pending I/O operations
-    HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
-    if (stdinHandle != INVALID_HANDLE_VALUE) {
-        CancelIoEx(stdinHandle, nullptr);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        CancelIoEx(stdinHandle, nullptr);
-    }
-
-#else
-    // On POSIX systems, close() on stdin's fd will interrupt blocking read
-    int fd = STDIN_FILENO;  // or fileno(stdin)
-    close(dup(fd));  // Duplicate and close to avoid closing the original fd
-#endif // UTILS_CPP_OS_WINDOWS
-
     if (impl().thread.joinable())
         impl().thread.join();
 }
 
 void StdinListenerNative::readLoop()
 {
-    std::string line;
-
     while (impl().running) {
-        bool gotLine = static_cast<bool>(std::getline(std::cin, line));
+        if (!waitForData(100))
+            continue;
 
-        if (!gotLine)
+        char buf[1024];
+        const auto bytesRead = readAvailable(buf, sizeof(buf));
+
+        if (bytesRead <= 0)
             break;
 
-        impl().lineCallback(line);
+        // Accumulate into line buffer, dispatch complete lines
+        for (size_t i = 0; i < static_cast<size_t>(bytesRead); ++i) {
+            const char ch = buf[i];
+
+            if (ch == '\n') {
+                // Strip trailing \r for CRLF
+                if (!impl().lineBuffer.empty() && impl().lineBuffer.back() == '\r')
+                    impl().lineBuffer.pop_back();
+
+                impl().lineCallback(impl().lineBuffer);
+                impl().lineBuffer.clear();
+            } else {
+                impl().lineBuffer += ch;
+            }
+        }
     }
+}
+
+bool StdinListenerNative::waitForData(int timeoutMs)
+{
+#ifdef UTILS_CPP_OS_WINDOWS
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    return WaitForSingleObject(hStdin, static_cast<DWORD>(timeoutMs)) == WAIT_OBJECT_0;
+#else
+    struct pollfd pfd {};
+    pfd.fd = STDIN_FILENO;
+    pfd.events = POLLIN;
+    return poll(&pfd, 1, timeoutMs) > 0;
+#endif // UTILS_CPP_OS_WINDOWS
+}
+
+int StdinListenerNative::readAvailable(char* buffer, size_t sz)
+{
+#ifdef UTILS_CPP_OS_WINDOWS
+    DWORD bytesRead {};
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    if (!ReadFile(hStdin, buffer, static_cast<DWORD>(sz), &bytesRead, nullptr))
+        return -1;
+    return static_cast<int>(bytesRead);
+#else
+    return static_cast<int>(read(STDIN_FILENO, buffer, sz));
+#endif // UTILS_CPP_OS_WINDOWS
 }
 
 } // namespace utils_cpp
