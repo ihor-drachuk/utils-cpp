@@ -403,11 +403,16 @@ private:
     Iterator m_end {};
 };
 
+inline std::mt19937& threadLocalRng()
+{
+    thread_local static std::mt19937 gen(std::random_device{}());
+    return gen;
+}
+
 template<typename T>
 T random(T min, T max)
 {
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    auto& gen = threadLocalRng();
     std::uniform_int_distribution<T> dis(min, max);
     return dis(gen);
 }
@@ -1575,8 +1580,7 @@ auto generate_rnd(size_t count, Generator generator)
     if (!count)
         return ResultType();
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    auto& gen = Internal::threadLocalRng();
     std::uniform_int_distribution<size_t> dis(0, std::numeric_limits<size_t>::max());
 
     ResultType result;
@@ -1610,8 +1614,7 @@ auto generate_rnd(size_t count, T min, T max, Generator generator = {})
     if (!count)
         return ResultType();
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    auto& gen = Internal::threadLocalRng();
     std::uniform_int_distribution<T> dis(min, max);
 
     ResultType result;
@@ -1659,8 +1662,7 @@ auto random_items(const Container<CArgs...>& container, size_t count)
     Internal::tryReserve(result, count);
     auto inserter = Internal::getInserter(result);
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    auto& gen = Internal::threadLocalRng();
     std::uniform_int_distribution<size_t> dis(0, container.size() - 1);
 
     while (count) {
@@ -1689,8 +1691,7 @@ auto random_items_unique(const Container<CArgs...>& container, size_t count)
     Internal::tryReserve(result, count);
     auto inserter = Internal::getInserter(result);
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    auto& gen = Internal::threadLocalRng();
 
     auto iterators = generate<std::vector>(static_cast<size_t>(container.size()), [it = std::cbegin(container)]() mutable { return it++; });
     std::shuffle(iterators.begin(), iterators.end(), gen);
@@ -1756,8 +1757,7 @@ auto random_weighted_items(const Container<CArgs...>& container,
 
     assert(std::all_of(container.begin(), container.end(), [&](const auto& x) { return pred(x) > 0; }));
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    auto& gen = Internal::threadLocalRng();
 
     ResultType result;
     Internal::tryReserve(result, count);
@@ -1845,8 +1845,7 @@ auto random_weighted_items_unique(const Container<CArgs...>& container,
     assert(container.size() >= count);
     assert(std::all_of(container.begin(), container.end(), [&](const auto& x) { return pred(x) > 0; }));
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    auto& gen = Internal::threadLocalRng();
     std::uniform_real_distribution<double> dis(0.0, 1.0);
 
     // Compute a key for each element using the Efraimidis–Spirakis algorithm:
