@@ -20,7 +20,6 @@ class lazy_init_base : public lazy_init_types
 public:
     lazy_init_base() = default;
 
-    template<typename Factory>
     lazy_init_base(const lazy_init_base<T>&) = delete;
     virtual ~lazy_init_base() { delete m_content; }
 
