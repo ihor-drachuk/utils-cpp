@@ -186,7 +186,7 @@ auto result = utils_cpp::copy_if_transform(
 | Header | Description |
 |--------|-------------|
 | `system_tools.h` | Device name, chassis type, admin rights detection |
-| `vm_detector.h` | Virtual machine / hypervisor detection |
+| `vm_detector.h` | Virtual machine / hypervisor detection from firmware (SMBIOS, DMI, IOKit) and CPUID on Windows, Linux and macOS, x86 and ARM |
 | `cpuid.h` | CPUID instruction wrapper (x86) |
 | `stdin_listener.h` | Non-blocking stdin reader with echo/backspace support |
 | `stdin_listener_native.h` | Line-based stdin listener |

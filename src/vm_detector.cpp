@@ -4,209 +4,257 @@
 
 #include <utils-cpp/vm_detector.h>
 
+#include <string_view>
+
 #include <utils-cpp/cpuid.h>
 
-#include <algorithm>
-#include <cctype>
-#include <cstdint>
-#include <string_view>
-#include <vector>
-
-#ifdef UTILS_CPP_OS_WINDOWS
-#include <windows.h>
-#endif // UTILS_CPP_OS_WINDOWS
+#include "Internal/vm_detector_platform.h"
 
 namespace {
 
+using utils_cpp::FirmwareInfo;
+using utils_cpp::VM;
+
 constexpr utils_cpp::cpuid::Reg32 kHypervisorVendorLeaf = 0x40000000;
 constexpr utils_cpp::cpuid::Reg32 kHypervisorFeaturesLeaf = 0x40000003;
+constexpr utils_cpp::cpuid::Reg32 kHypervisorRecommendationsLeaf = 0x40000004;
+constexpr utils_cpp::cpuid::Reg32 kNestedHypervisorVendorLeaf = 0x40000100;
 constexpr unsigned kHypervisorPresentBit = 31;
 constexpr unsigned kCreatePartitionsBit = 0;
+constexpr unsigned kNestedInHyperVBit = 12;
 
-bool containsIgnoreCase(std::string_view text, std::string_view needle)
+constexpr std::string_view kMicrosoftHv = "Microsoft Hv";
+constexpr std::string_view kKvmSignature = "KVMKVMKVM";
+constexpr std::string_view kAmazonEc2 = "Amazon EC2";
+constexpr std::string_view kGoogleComputeEngine = "Google Compute Engine";
+
+struct VendorPrefix
 {
-    const auto it = std::search(text.begin(), text.end(), needle.begin(), needle.end(),
-                                [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
-    return it != text.end();
+    std::string_view prefix;
+    VM vm;
+};
+
+// Vendors whose guests may also carry another hypervisor's signature: nested Hyper-V inside VMware, Xen cloaked as
+// Hyper-V. Their firmware strings are trusted before any signature.
+constexpr VendorPrefix kMasqueradedVendors[] = {
+    {"VMware", VM::VMware},
+    {"VMW", VM::VMware},
+    {"innotek GmbH", VM::VirtualBox},
+    {"VirtualBox", VM::VirtualBox},
+    {"Parallels", VM::Parallels},
+    {"Xen", VM::Xen},
+    {"Hyper-V", VM::HyperV_VirtualPC},
+    {"Apple Virtualization", VM::Apple},
+    {"VirtualMac", VM::Apple},
+    {"BHYVE", VM::Bhyve},
+};
+
+// Firmware that fronts more than one hypervisor (QEMU also runs without KVM, a cloud may run on ESXi), so the
+// hypervisor signature is consulted first.
+constexpr VendorPrefix kPlainVendors[] = {
+    {"KVM", VM::KVM},
+    {"OpenStack", VM::KVM},
+    {"KubeVirt", VM::KVM},
+    {"Alibaba Cloud ECS", VM::KVM},
+    {"QEMU", VM::QEMU},
+    {"Bochs", VM::QEMU},
+};
+
+constexpr VendorPrefix kHypervisorSignatures[] = {
+    {"XenVMMXenVMM", VM::Xen},
+    {"KVMKVMKVM", VM::KVM},
+    {"Linux KVM Hv", VM::KVM},
+    {"TCGTCGTCGTCG", VM::QEMU},
+    {"VMwareVMware", VM::VMware},
+    {"VBoxVBoxVBox", VM::VirtualBox},
+    {"bhyve bhyve", VM::Bhyve},
+    {"Apple VZ", VM::Apple},
+    {" lrpepyh vr", VM::Parallels},
+    {"prl hyperv", VM::Parallels},
+};
+
+bool startsWith(std::string_view text, std::string_view prefix)
+{
+    return text.substr(0, prefix.size()) == prefix;
 }
 
-std::optional<utils_cpp::VM> vmFromSmbios(const std::string& manufacturer, const std::string& product)
+bool contains(std::string_view text, std::string_view needle)
 {
-    if (containsIgnoreCase(manufacturer, "VMware") || containsIgnoreCase(product, "VMware"))
-        return utils_cpp::VM::VMware;
-    if (containsIgnoreCase(manufacturer, "innotek") || containsIgnoreCase(product, "VirtualBox"))
-        return utils_cpp::VM::VirtualBox;
-    if (containsIgnoreCase(manufacturer, "Parallels") || containsIgnoreCase(product, "Parallels"))
-        return utils_cpp::VM::Parallels;
-    if (containsIgnoreCase(manufacturer, "QEMU") || containsIgnoreCase(product, "KVM"))
-        return utils_cpp::VM::KVM;
-    if (containsIgnoreCase(manufacturer, "Xen") || containsIgnoreCase(product, "HVM domU"))
-        return utils_cpp::VM::Xen;
-    if (containsIgnoreCase(manufacturer, "Microsoft Corporation") && containsIgnoreCase(product, "Virtual Machine"))
-        return utils_cpp::VM::HyperV_VirtualPC;
-    return {};
+    return text.find(needle) != std::string_view::npos;
 }
 
-std::optional<utils_cpp::VM> vmFromHypervisorVendor(const std::string& vendor)
+std::string withoutTrailingPadding(std::string_view text)
 {
-    if (vendor == "VMwareVMware")
-        return utils_cpp::VM::VMware;
-    if (vendor == "VBoxVBoxVBox")
-        return utils_cpp::VM::VirtualBox;
-    if (vendor == "KVMKVMKVM")
-        return utils_cpp::VM::KVM;
-    if (vendor == "Microsoft Hv")
-        return utils_cpp::VM::HyperV_VirtualPC;
-    if (vendor == " lrpepyh vr" || vendor == "prl hyperv  ")
-        return utils_cpp::VM::Parallels;
-    if (vendor == "XenVMMXenVMM")
-        return utils_cpp::VM::Xen;
-    return utils_cpp::VM::Unknown;
+    const auto end = text.find_last_not_of(std::string_view(" \0", 2));
+    return std::string(end == std::string_view::npos ? std::string_view {} : text.substr(0, end + 1));
 }
 
-#ifdef UTILS_CPP_OS_WINDOWS
-
-std::vector<std::byte> readSmbiosTable()
+struct FirmwareFields
 {
-    constexpr DWORD kRawSmbiosTablesSignature = 'RSMB';
-    // RawSMBIOSData: Used20CallingMethod, SMBIOSMajorVersion, SMBIOSMinorVersion, DmiRevision, Length.
-    constexpr DWORD kRawSmbiosDataHeaderSize = 8;
+    std::string_view fields[5];
 
-    const DWORD size = GetSystemFirmwareTable(kRawSmbiosTablesSignature, 0, nullptr, 0);
-    if (size <= kRawSmbiosDataHeaderSize)
+    FirmwareFields(const FirmwareInfo& firmware)
+        : fields {firmware.systemProduct,
+                  firmware.systemManufacturer,
+                  firmware.boardManufacturer,
+                  firmware.biosVendor,
+                  firmware.productVersion}
+    {}
+
+    bool anyStartsWith(std::string_view prefix) const
+    {
+        for (const auto& field : fields)
+            if (startsWith(field, prefix))
+                return true;
+        return false;
+    }
+
+    template<std::size_t N>
+    std::optional<VM> firstMatch(const VendorPrefix (&vendors)[N]) const
+    {
+        for (const auto& field : fields)
+            for (const auto& vendor : vendors)
+                if (startsWith(field, vendor.prefix))
+                    return vendor.vm;
         return {};
+    }
+};
 
-    std::vector<std::byte> buffer(size);
-    const DWORD written = GetSystemFirmwareTable(kRawSmbiosTablesSignature, 0, buffer.data(), size);
-    if (written == 0 || written > size)
-        return {};
-
-    buffer.resize(written);
-    buffer.erase(buffer.begin(), buffer.begin() + kRawSmbiosDataHeaderSize);
-    return buffer;
-}
-
-#else // Not Windows
-
-std::vector<std::byte> readSmbiosTable()
+// An EC2 bare-metal instance type ends in ".metal" or continues with a size after it.
+bool isEc2BareMetal(std::string_view product)
 {
-    return {};
+    const auto pos = product.find(".metal");
+    if (pos == std::string_view::npos)
+        return false;
+    const auto rest = product.substr(pos + 6);
+    return rest.empty() || rest.front() == '-';
 }
 
-#endif // UTILS_CPP_OS_WINDOWS
+std::optional<VM> vmFromMasqueradedFirmware(const FirmwareInfo& firmware, bool cpuidAvailable)
+{
+    const FirmwareFields fields(firmware);
+
+    if (startsWith(firmware.systemManufacturer, "Microsoft Corporation") && startsWith(firmware.systemProduct, "Virtual Machine"))
+        return VM::HyperV_VirtualPC;
+
+    if (fields.anyStartsWith(kAmazonEc2) && !isEc2BareMetal(firmware.systemProduct))
+        return VM::KVM;
+
+    // Bare-metal GCE machines carry the same string, so on x86 the KVM signature has to confirm it.
+    if (!cpuidAvailable && fields.anyStartsWith(kGoogleComputeEngine))
+        return VM::KVM;
+
+    return fields.firstMatch(kMasqueradedVendors);
+}
+
+std::optional<VM> vmFromHypervisorType(std::string_view type)
+{
+    if (startsWith(type, "xen"))
+        return VM::Xen;
+    if (startsWith(type, "linux,kvm"))
+        return VM::KVM;
+    if (contains(type, "vmware"))
+        return VM::VMware;
+    if (type.empty())
+        return {};
+    return VM::Unknown;
+}
+
+std::optional<VM> vmFromHypervisorSignature(std::string_view vendor)
+{
+    for (const auto& signature : kHypervisorSignatures)
+        if (vendor == signature.prefix)
+            return signature.vm;
+    if (vendor.empty())
+        return {};
+    return VM::Unknown;
+}
 
 } // anonymous namespace
 
 namespace utils_cpp {
 
-SmbiosSystemInfo parseSmbiosType1(const std::byte* data, std::size_t size)
-{
-    constexpr std::uint8_t kTypeSystemInformation = 1;
-    constexpr std::uint8_t kTypeEndOfTable = 127;
-    constexpr std::size_t kHeaderSize = 4;              // type, length, handle
-    constexpr std::size_t kManufacturerOffset = 0x04;   // string index
-    constexpr std::size_t kProductOffset = 0x05;        // string index
-
-    if (!data)
-        return {};
-
-    const auto at = [&](std::size_t index) { return static_cast<std::uint8_t>(data[index]); };
-
-    std::size_t pos {};
-    while (pos + kHeaderSize <= size) {
-        const std::uint8_t type = at(pos);
-        const std::uint8_t length = at(pos + 1);
-        if (type == kTypeEndOfTable || length < kHeaderSize || pos + length > size)
-            break;
-
-        // The formatted area is followed by the string set: NUL-terminated strings, then one more NUL. A record
-        // with no strings carries the two NUL bytes on their own, so the record always ends on a NUL pair.
-        std::vector<std::string> strings;
-        std::size_t cursor = pos + length;
-        while (cursor < size && at(cursor) != 0) {
-            std::size_t end = cursor;
-            while (end < size && at(end) != 0)
-                ++end;
-            strings.emplace_back(reinterpret_cast<const char*>(data + cursor), end - cursor);
-            cursor = end < size ? end + 1 : end;
-        }
-        // A stringless record ends on two NULs, so skipping the set costs one byte more than after the last string.
-        const std::size_t next = strings.empty() ? cursor + 2 : cursor + 1;
-
-        if (type == kTypeSystemInformation) {
-            const auto stringAt = [&](std::size_t offset) -> std::string {
-                if (offset >= length)
-                    return {};
-                const std::uint8_t index = at(pos + offset);
-                return index >= 1 && index <= strings.size() ? strings[index - 1] : std::string {};
-            };
-            return {stringAt(kManufacturerOffset), stringAt(kProductOffset)};
-        }
-
-        if (next <= pos)
-            break;
-        pos = next;
-    }
-
-    return {};
-}
-
 VmEvidence collectVmEvidence()
 {
     VmEvidence evidence;
 
-    evidence.hypervisorPresent = cpuid::getBit(1, cpuid::ecx, kHypervisorPresentBit).value_or(false);
+    evidence.cpuidAvailable = cpuid::get(0).has_value();
+    const bool cpuidHypervisorPresent = cpuid::getBit(1, cpuid::ecx, kHypervisorPresentBit).value_or(false);
+    evidence.hypervisorPresent = cpuidHypervisorPresent || internal::readOsHypervisorFlag();
 
-    if (evidence.hypervisorPresent) {
+    if (cpuidHypervisorPresent) {
         if (const auto optVendor = cpuid::getStringRaw(kHypervisorVendorLeaf))
-            evidence.hypervisorVendor = std::string(optVendor->data());
+            evidence.hypervisorVendor = withoutTrailingPadding(optVendor->data());
 
-        evidence.rootPartition = cpuid::getBit(kHypervisorFeaturesLeaf, cpuid::ebx, kCreatePartitionsBit)
-                                     .value_or(false);
+        if (evidence.hypervisorVendor == kMicrosoftHv) {
+            evidence.hyperVRootPartition = cpuid::getBit(kHypervisorFeaturesLeaf, cpuid::ebx, kCreatePartitionsBit)
+                                               .value_or(false);
+            evidence.hyperVNested = cpuid::getBit(kHypervisorRecommendationsLeaf, cpuid::eax, kNestedInHyperVBit)
+                                        .value_or(false);
+            if (const auto optNestedVendor = cpuid::getStringRaw(kNestedHypervisorVendorLeaf))
+                evidence.nestedHypervisorVendor = withoutTrailingPadding(optNestedVendor->data());
+        }
     }
 
-    const auto table = readSmbiosTable();
-    const auto system = parseSmbiosType1(table.data(), table.size());
-    evidence.smbiosManufacturer = system.manufacturer;
-    evidence.smbiosProduct = system.product;
+    evidence.hypervisorType = internal::readHypervisorType();
+    evidence.xenDom0 = internal::readXenDom0();
+    evidence.firmware = internal::readFirmwareInfo();
 
     return evidence;
 }
 
 std::optional<VM> classifyVm(const VmEvidence& evidence)
 {
-    if (const auto optVm = vmFromSmbios(evidence.smbiosManufacturer, evidence.smbiosProduct))
+    if (const auto optVm = vmFromMasqueradedFirmware(evidence.firmware, evidence.cpuidAvailable))
         return optVm;
 
-    if (!evidence.hypervisorPresent)
-        return {};
+    // Unknown stays deferred: the plain firmware stage may still name the vendor.
+    std::optional<VM> deferred;
 
-    // A host running Hyper-V, VBS or WSL2 reports "Microsoft Hv" from its own root partition.
-    if (evidence.hypervisorVendor == "Microsoft Hv" && evidence.rootPartition)
-        return {};
+    // The control domain's own Xen shows up in hypervisorType and as the Xen signature.
+    if (!evidence.xenDom0) {
+        if (const auto optVm = vmFromHypervisorType(evidence.hypervisorType)) {
+            if (*optVm != VM::Unknown)
+                return optVm;
+            deferred = VM::Unknown;
+        }
+    }
 
-    return vmFromHypervisorVendor(evidence.hypervisorVendor);
+    if (evidence.hypervisorVendor == kMicrosoftHv) {
+        if (evidence.nestedHypervisorVendor == kKvmSignature)
+            return VM::KVM;
+        // A host running Hyper-V, VBS or WSL2 reports "Microsoft Hv" from its own root partition.
+        if (evidence.hyperVRootPartition && !evidence.hyperVNested)
+            return {};
+        // QEMU reports "Microsoft Hv" too when it provides Hyper-V enlightenments, so firmware gets a say first.
+        deferred = VM::HyperV_VirtualPC;
+    } else if (const auto optVm = vmFromHypervisorSignature(evidence.hypervisorVendor)) {
+        const bool ownXen = evidence.xenDom0 && *optVm == VM::Xen;
+        if (!ownXen && *optVm != VM::Unknown)
+            return optVm;
+        if (!ownXen)
+            deferred = VM::Unknown;
+    }
+
+    // Only an outer hypervisor, caught above or still deferred, makes the control domain a guest.
+    if (evidence.xenDom0)
+        return deferred;
+
+    if (const auto optVm = FirmwareFields(evidence.firmware).firstMatch(kPlainVendors))
+        return optVm;
+
+    if (deferred)
+        return deferred;
+
+    if (evidence.hypervisorPresent)
+        return VM::Unknown;
+
+    return {};
 }
 
 std::optional<VM> detectVm()
 {
     return classifyVm(collectVmEvidence());
-}
-
-std::optional<VM> detectSupervisor()
-{
-    auto evidence = collectVmEvidence();
-    // Blanking the SMBIOS fields makes classifyVm fall through to the CPUID vendor.
-    evidence.smbiosManufacturer.clear();
-    evidence.smbiosProduct.clear();
-    return classifyVm(evidence);
-}
-
-std::optional<VM> detectVmOnly()
-{
-    const auto table = readSmbiosTable();
-    const auto system = parseSmbiosType1(table.data(), table.size());
-    return vmFromSmbios(system.manufacturer, system.product);
 }
 
 } // namespace utils_cpp
