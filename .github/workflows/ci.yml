@@ -70,13 +70,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        runner: [windows-latest]
         compiler_arch: [x64]
         build_type: [Debug, Release]
         include:
-          - compiler_arch: Win32
+          - runner: windows-latest
+            compiler_arch: Win32
+            build_type: Debug
+          - runner: windows-11-arm
+            compiler_arch: ARM64
             build_type: Debug
 
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
 
     if: "!contains(github.event.head_commit.message, 'CI skip') && !contains(github.event.head_commit.message, 'Skip CI')"
     timeout-minutes: 30
@@ -96,7 +101,7 @@ jobs:
         working-directory: ${{github.workspace}}
         shell: bash
         run: |
-          cmake -DUTILS_CPP_ENABLE_TESTS=ON -DUTILS_CPP_ENABLE_BENCHMARK=ON -DCMAKE_BUILD_TYPE="${{matrix.build_type}}" -A "${{matrix.compiler_arch}}" -G "Visual Studio 17 2022" -S "./src" -B "./build"
+          cmake -DUTILS_CPP_ENABLE_TESTS=ON -DUTILS_CPP_ENABLE_BENCHMARK=ON -DCMAKE_BUILD_TYPE="${{matrix.build_type}}" -A "${{matrix.compiler_arch}}" -S "./src" -B "./build"
           cmake --build "./build" --config "${{matrix.build_type}}" -j "${{env.CORES}}"
           cd ./build/tests
           ctest --no-tests=error --rerun-failed --output-on-failure --timeout 30 -C "${{matrix.build_type}}"
