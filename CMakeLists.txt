@@ -126,7 +126,10 @@ else()
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i386|i686")
         set(UTILS_CPP_ARCH "x86")
 
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7l|arm|aarch64")
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64|arm64")
+        set(UTILS_CPP_ARCH "ARM64")
+
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|armv7l|arm")
         set(UTILS_CPP_ARCH "ARM")
 
     elseif(UTILS_CPP_COMPILER_GCC)
