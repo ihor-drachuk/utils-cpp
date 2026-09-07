@@ -6,44 +6,52 @@
 
 #include <cassert>
 
+#if defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || defined(__x86_64__)
+#define UTILS_CPP_CPUID_X86 1
+#endif // defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || defined(__x86_64__)
+
+#ifdef UTILS_CPP_CPUID_X86
 #ifdef UTILS_CPP_COMPILER_MSVC
 #include <intrin.h>
 #else
-#ifndef UTILS_CPP_ARCH_ARM // Not ARM
 #include <cpuid.h>
-#endif // UTILS_CPP_ARCH_ARM
 #endif // UTILS_CPP_COMPILER_MSVC
+#endif // UTILS_CPP_CPUID_X86
 
 namespace utils_cpp {
 
 namespace cpuid {
 
-#ifdef UTILS_CPP_COMPILER_MSVC
+#if defined(UTILS_CPP_CPUID_X86) && defined(UTILS_CPP_COMPILER_MSVC)
 
 bool get(Reg32 cpuInfo[RegCount], Reg32 functionId)
 {
-    __cpuid(reinterpret_cast<int*>(cpuInfo), *reinterpret_cast<int*>(&functionId));
+    int registers[RegCount] {};
+    __cpuid(registers, static_cast<int>(functionId));
+
+    for (int i = 0; i < RegCount; ++i)
+        cpuInfo[i] = static_cast<Reg32>(registers[i]);
+
     return true;
 }
 
-#else // Not MSVC
-
-#ifndef UTILS_CPP_ARCH_ARM // Not ARM
+#elif defined(UTILS_CPP_CPUID_X86)
 
 bool get(Reg32 cpuInfo[RegCount], Reg32 functionId)
 {
-    return __get_cpuid(functionId, &cpuInfo[0], &cpuInfo[1], &cpuInfo[2], &cpuInfo[3]);
+    // __get_cpuid refuses leaves above the basic maximum, which every hypervisor leaf (0x4000xxxx) is.
+    __cpuid(functionId, cpuInfo[0], cpuInfo[1], cpuInfo[2], cpuInfo[3]);
+    return true;
 }
 
-#else // ARM
+#else // Not x86
 
 bool get(Reg32 /*cpuInfo*/[RegCount], Reg32 /*functionId*/)
 {
     return false;
 }
 
-#endif // UTILS_CPP_ARCH_ARM
-#endif // UTILS_CPP_COMPILER_MSVC
+#endif // UTILS_CPP_CPUID_X86
 
 bool get(void* dst, Reg32 functionId)
 {
